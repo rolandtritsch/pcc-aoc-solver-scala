@@ -1,0 +1,124 @@
+# AoC Solver - Scala
+
+A Paperclip company that solves every part of [Advent of Code][aoc] from
+2015 through 2025 and publishes solutions to [rolandtritsch/scala3-aoc][repo].
+It covers 262 days and 524 parts: 25 days per year for 2015–2024 and 12 for
+2025, including the authenticated final completion interactions.
+
+## Daily workflow
+
+The CTO checks for the next unfinished day once daily at **06:00 Europe/Dublin**
+(including daylight saving changes). The [daily selection task][daily] is a
+native scheduled routine with cron `0 6 * * *`, `skip_missed` catch-up, and
+`coalesce_if_active` concurrency. CTO interval heartbeats are disabled.
+
+Order is year, day, then part, beginning at 2015 Day01 and ending at 2025
+Day12. Each selection authorizes one day. Work proceeds through gather → solve
+→ submit → review for part1, then the reviewer hands accepted part1 to the
+part2 gatherer within the same authorized day. Accepted part2 ends the day.
+A rejected attempt is reviewed and waits for a later daily CTO repair decision.
+Specialists never start another day or wake the CTO. The CTO exits if any
+current day stage or review is unfinished. Verified existing site acceptances
+are preserved; current code still requires executed tests and runner evidence.
+
+| Agent | Responsibility |
+| --- | --- |
+| CTO | Daily selection of one year/day or repair, after checking the cycle gate |
+| Problem Gatherer | Assigned-year statements and cached personal input |
+| Problem Solver | Idiomatic Scala 3, active tests, verified commit and push |
+| Problem Submitter | Verify publication, submit or reconcile authoritative acceptance |
+| Solution Reviewer | Review each verdict, improve reusable skills, continue accepted part1 to part2 |
+| WatchDog | Independent report-only observer; optional timer, disabled by default |
+| Model Tester | Manually assigned model probe outside the pipeline |
+
+## Solution layout
+
+`AOC_REPO_DIR` is the Git root of `rolandtritsch/scala3-aoc` on branch `main`.
+Every handoff includes explicit `year`, day, part, stage, cycle start, root,
+year-project path, authorization issue and solution commit. Issue titles use
+`AoC YYYY DayNN partP: stage`; review result JSON includes `year`.
+
+- `0000/` remains the reusable template. Never solve real puzzles there.
+- `YYYY/` is an independent sbt project, package `aocYYYY`.
+- Statements: `YYYY/problems/DayNNProblem.txt`.
+- Sources: `YYYY/src/main/scala/aocYYYY/DayNN.scala`.
+- Tests: `YYYY/src/test/scala/aocYYYY/DayNNTest.scala`.
+- Inputs: `YYYY/src/main/resources/inputs/DayNN.txt`.
+- Shared improvements: root `skills/` and `scripts/`.
+
+When the selected year is absent, copy `0000/` excluding generated artifacts,
+rename source/test packages from `aoc0000` to `aocYYYY`, update `build.sbt`,
+and add the year to the CI matrix. Preserve Day00 and existing year projects.
+Validate and commit this bootstrap separately before gathering/solving. See the
+solution repository's `README.md` and `AGENTS.md` for the copy command and checks.
+Run sbt **inside `YYYY/`**, while Git synchronization and commits use the root.
+Use `sbt --batch run` and `sbt --batch 'testOnly *'`; the template's pinned
+thin client can turn `test` into `testQuick` and execute zero tests.
+
+The [workflow][workflow] defines gates and handoffs. The [solver helper][solver]
+requires `--year YYYY`, checks intended year-prefixed paths, runs builds in
+that year, verifies exact textual answers (including negative/text answers),
+pushes, and proves HEAD/tracking/live-remote parity before handoff. Final-day
+noncomputational interactions use authenticated evidence instead.
+
+## Import and deployment
+
+This is a new company package derived from `pcc-aoc-solver-2025-scala`.
+The source revision is `17892a8635442c7feb6570f276dad7a183185395`.
+The original package and running company are independent. The bundled
+company-creator skill and research references retain their original attribution
+and historical context; current operating rules are in this package's agent
+instructions and AoC skills.
+
+```bash
+paperclipai company import . --target new --dry-run
+paperclipai company import . --target new
+```
+
+Include tasks/routines in the import. Inspect the preview for the CTO-owned
+`daily-selection` routine, cron `0 6 * * *`, timezone `Europe/Dublin`, and
+active status. Some import modes pause automations: after deployment verify
+and activate this routine, with the CTO runnable and its interval heartbeat off.
+This repository alone does not deploy a company or activate a live schedule.
+Do not replace the old company or reuse its cycle timestamp or deployment IDs.
+
+The portable defaults use `/paperclip/workspaces/scala3-aoc` and company scripts
+under `/paperclip/company-packages/pcc-aoc-solver-scala`. Override these with
+actual deployed paths for all agents and make the CTO/WatchDog launchers
+executable. Configure `AOC_CYCLE_STARTED_AT` to the new company's activation
+instant; the placeholder `SET_AT_DEPLOYMENT` fails closed until configured.
+Confirm the solution checkout exists, has the correct origin and clean main
+branch, and contains `0000/` before activating the routine.
+
+Bind vault-backed `OPENROUTER_API_KEY`, `AOC_SESSION` (gatherer/submitter), and
+GitHub authentication for agents publishing solutions. Never copy credentials
+into the package. Existing Pro/Flash model pins and OpenRouter mappings are
+inherited configuration, not a fresh model evaluation. Read before changing
+provider bindings. Reviewer commits shared improvements; the next authorized
+publication or CTO synchronization pushes them.
+
+WatchDog remains independent and disabled by default, with its deterministic
+report-only runner and bundled offline checks. Configure its public UI root
+for the new company if enabling it. Historical reports are retained in the
+source repository rather than presented as evidence about this new company.
+
+## Verification
+
+Run from this package's root:
+
+```bash
+python3 -B -m unittest discover -s skills/aoc-workflow/scripts/tests -v
+python3 -B -m unittest discover -s skills/aoc-solve-scala/scripts/tests -v
+python3 -B -m unittest discover -s skills/aoc-review/scripts/tests -v
+python3 -B -m unittest discover -s skills/aoc-watchdog/scripts/tests -v
+```
+
+The gate distinguishes identical day/part numbers across years, requires
+matching year-qualified review results, and stops after all 524 accepted
+reviews. It never invents 2025 Day13 or 2026 work. Missing evidence fails closed.
+
+[aoc]: https://adventofcode.com/events
+[repo]: https://github.com/rolandtritsch/scala3-aoc
+[daily]: tasks/daily-selection/TASK.md
+[workflow]: skills/aoc-workflow/SKILL.md
+[solver]: skills/aoc-solve-scala/SKILL.md
