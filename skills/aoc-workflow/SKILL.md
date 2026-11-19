@@ -1,9 +1,9 @@
 ---
 name: aoc-workflow
-description: Coordinate all AoC 2015–2025 parts with one daily day selection, year-aware evidence, and duplicate-safe handoffs
+description: Coordinate all AoC 2015–2025 parts with two-minute readiness checks, year-aware evidence, and duplicate-safe handoffs
 ---
 
-## Scope and daily authorization
+## Scope and day authorization
 
 Solve every part of every day in years 2015–2025, ordered by year, day, part.
 2015–2024 each have 25 days; 2025 has 12. This is 262 days and 524 parts.
@@ -11,10 +11,11 @@ Day00 and year 0000 are templates, excluded from progress. Never invent 2025
 Day13 or work outside these years. Final-day part2 (Day25 in 2015–2024,
 Day12 in 2025) follows the authenticated site's completion interaction.
 
-The CTO checks once daily at 06:00 Europe/Dublin through the daily-selection
-routine (`0 6 * * *`), with interval heartbeats disabled. It authorizes at
-most one day, both parts sequentially, or the current day's repair. Manual
-board triggers can explicitly request a check. No specialist wakes the CTO.
+The CTO checks every two minutes through the daily-selection routine
+(`*/2 * * * *`), with interval heartbeats disabled. When the gate is clear,
+it authorizes at most one day, both parts sequentially, or the current day's
+repair. Manual board triggers can explicitly request a check. No specialist
+wakes the CTO.
 WatchDog, Model Tester and CTO routine occurrences are outside puzzle stages.
 
 The cycle is gather → solve → submit → review for each computational part.
@@ -23,8 +24,9 @@ may reviewer create/reuse that same authorized day's part2 gather issue.
 Stage the verified part2 handoff in backlog before marking part1 review
 done, then activate it as todo. Reconcile this same handoff on interruption. Keep the original day
 authorization identity through both parts. Accepted part2 ends the day.
-Rejected attempts are reviewed, then wait for a later daily CTO repair
-selection. No specialist creates another day or retries rejected code itself.
+Rejected attempts are reviewed, then wait for a later CTO readiness check
+before repair selection. No specialist creates another day or retries rejected
+code itself.
 
 ## Independent solving and provenance
 
@@ -142,4 +144,4 @@ part1, also verify the same-day part2 handoff; then mark review done. If status
 persistence or handoff fails, keep the review unfinished and reconcile on
 resume. Part2 stays in backlog until part1's review is successfully completed,
 then reviewer activates it; gatherer independently checks that prerequisite.
-Once part2 is accepted/reviewed, stop until the next daily CTO selection.
+Once part2 is accepted/reviewed, stop until the next CTO readiness check.

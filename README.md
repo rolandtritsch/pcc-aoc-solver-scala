@@ -7,23 +7,24 @@ It covers 262 days and 524 parts: 25 days per year for 2015–2024 and 12 for
 
 ## Daily workflow
 
-The CTO checks for the next unfinished day once daily at **06:00 Europe/Dublin**
-(including daylight saving changes). The [daily selection task][daily] is a
-native scheduled routine with cron `0 6 * * *`, `skip_missed` catch-up, and
-`coalesce_if_active` concurrency. CTO interval heartbeats are disabled.
+The CTO checks for the next unfinished day every two minutes through the
+[daily selection task][daily], a native scheduled routine with cron
+`*/2 * * * *`, `skip_missed` catch-up, and `coalesce_if_active` concurrency.
+CTO interval heartbeats remain disabled.
 
 Order is year, day, then part, beginning at 2015 Day01 and ending at 2025
 Day12. Each selection authorizes one day. Work proceeds through gather → solve
 → submit → review for part1, then the reviewer hands accepted part1 to the
 part2 gatherer within the same authorized day. Accepted part2 ends the day.
-A rejected attempt is reviewed and waits for a later daily CTO repair decision.
+A rejected attempt is reviewed and waits for a CTO readiness check before
+repair authorization.
 Specialists never start another day or wake the CTO. The CTO exits if any
 current day stage or review is unfinished. Verified existing site acceptances
 are preserved; current code still requires executed tests and runner evidence.
 
 | Agent | Responsibility |
 | --- | --- |
-| CTO | Daily selection of one year/day or repair, after checking the cycle gate |
+| CTO | Selects one year/day or repair when the cycle gate is clear |
 | Problem Gatherer | Assigned-year statements and cached personal input |
 | Problem Solver | Idiomatic Scala 3, active tests, verified commit and push |
 | Problem Submitter | Verify publication, submit or reconcile authoritative acceptance |
@@ -96,7 +97,7 @@ prompt during setup; authenticated puzzle runs still require the cycle gate.
 
 Include tasks/routines in the import. Indent schedule trigger list items beneath `triggers:`; the portability
 parser silently drops indentationless YAML lists. Inspect the preview for the CTO-owned
-`daily-selection` routine, cron `0 6 * * *`, timezone `Europe/Dublin`, and
+`daily-selection` routine, cron `*/2 * * * *`, timezone `Europe/Dublin`, and
 active status. Some import modes pause automations: after deployment verify
 and activate this routine, with the CTO runnable and its interval heartbeat off.
 This repository alone does not deploy a company or activate a live schedule.
