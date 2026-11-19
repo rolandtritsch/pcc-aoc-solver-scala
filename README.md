@@ -75,7 +75,14 @@ paperclipai company import . --target new --dry-run
 paperclipai company import . --target new
 ```
 
-Include tasks/routines in the import. Inspect the preview for the CTO-owned
+The package explicitly selects `adapter.runner: legacy` for OpenCode. The
+current Paperclip Runner rejects custom `command` launchers, which the CTO
+and WatchDog require. Preserve this choice when importing. The CTO launcher
+allows only Paperclip's exact credential-free `Respond with hello.` verification
+prompt during setup; authenticated puzzle runs still require the cycle gate.
+
+Include tasks/routines in the import. Indent schedule trigger list items beneath `triggers:`; the portability
+parser silently drops indentationless YAML lists. Inspect the preview for the CTO-owned
 `daily-selection` routine, cron `0 6 * * *`, timezone `Europe/Dublin`, and
 active status. Some import modes pause automations: after deployment verify
 and activate this routine, with the CTO runnable and its interval heartbeat off.

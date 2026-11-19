@@ -7,6 +7,7 @@ agents:
         maxConcurrentRuns: 1
     adapter:
       type: opencode_local
+      runner: legacy
       config:
         model: deepseek/deepseek-v4-flash-0731
         env:
@@ -41,6 +42,7 @@ agents:
   problem-gatherer:
     adapter:
       type: opencode_local
+      runner: legacy
       config:
         model: deepseek/deepseek-v4-flash-0731
         env:
@@ -81,6 +83,7 @@ agents:
   problem-solver:
     adapter:
       type: opencode_local
+      runner: legacy
       config:
         model: deepseek/deepseek-v4-pro-0813
         env:
@@ -118,6 +121,7 @@ agents:
   problem-submitter:
     adapter:
       type: opencode_local
+      runner: legacy
       config:
         model: deepseek/deepseek-v4-flash-0731
         env:
@@ -155,6 +159,7 @@ agents:
   solution-reviewer:
     adapter:
       type: opencode_local
+      runner: legacy
       config:
         model: deepseek/deepseek-v4-flash-0731
         env:
@@ -201,6 +206,7 @@ agents:
         wakeOnAutomation: false
     adapter:
       type: opencode_local
+      runner: legacy
       config:
         model: deepseek/deepseek-v4-flash-0731
         command: /paperclip/company-packages/pcc-aoc-solver-scala/skills/aoc-watchdog/scripts/aoc_watchdog_runner.py
@@ -229,6 +235,7 @@ agents:
   model-tester:
     adapter:
       type: opencode_local
+      runner: legacy
       config:
         model: deepseek/deepseek-v4-flash-0731
         env:
@@ -259,7 +266,7 @@ routines:
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
     triggers:
-    - kind: schedule
-      enabled: true
-      cronExpression: 0 6 * * *
-      timezone: Europe/Dublin
+      - kind: schedule
+        enabled: true
+        cronExpression: 0 6 * * *
+        timezone: Europe/Dublin
