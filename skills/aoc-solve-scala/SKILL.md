@@ -8,6 +8,29 @@ legacy `CLAUDE.md` if that is the available guidance). Read applicable
 project-local skills and the latest relevant review findings. Each year is an independent sbt project bootstrapped from `0000/`,
 with its own build and package. Use `AOC_REPO_DIR` for Git and `YYYY/` for sbt.
 
+## First-principles and source policy
+
+Solve from the official statement, official examples and cached personal input.
+Derive the algorithm and tests yourself. The template, generic utilities,
+general algorithms, your current attempt/repair and your own prior part of the
+same day are allowed inputs. General Scala/library/build documentation and
+necessary dependency, Paperclip API and Git publication traffic are allowed.
+
+Never search for, retrieve, read, copy, translate or delegate retrieval of an
+existing implementation, editorial, walkthrough or answer for the assigned
+puzzle. The prohibition covers the internet, GitHub, forums, videos, other local
+repositories, and historical implementations of that puzzle. Do not substitute
+a remembered puzzle-specific solution or a stored personal answer for an
+independent derivation and check. Generic reusable skills must not serve as a
+back door to an existing solution of the assigned puzzle.
+
+Before publication, include a compact provenance section in the handoff:
+allowed source paths/URLs and their purpose; algorithm/invariant and complexity;
+sample/boundary evidence; an independent check; and whether any disallowed
+material was encountered. Explain the algorithm briefly without providing a
+private reasoning transcript. If disallowed solution material was used, disclose
+it and stop for CTO review rather than claiming a first-principles result.
+
 ## Implement exactly the assigned part
 
 1. Read the assigned part's rules in `YYYY/problems/DayNNProblem.txt`, sample cases,

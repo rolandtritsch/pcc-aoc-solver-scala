@@ -8,6 +8,24 @@ or historical accepted work from CTO. Read [the research][research] for design
 rationale and limits; use the checkout's `AGENTS.md`, applicable local skills,
 and prior review findings for the actual review.
 
+## Provenance check
+
+Inspect the solver's declared sources and the complete available run/tool log,
+including shell commands, fetched URLs, file reads and invoked helpers. Check
+that gatherer supplied official material rather than third-party explanations
+or known personal answers. Verify a concise derivation/invariant, complexity,
+sample/boundary tests and an independent check. Do not require a private
+reasoning transcript; assess the supplied algorithm justification and evidence.
+
+Look specifically for existing puzzle solutions, editorials, walkthroughs,
+answer lists, unrelated local/remote solution repositories or delegated lookup.
+Generic technical docs, template/utilities, dependency downloads and required
+Git/Paperclip calls are allowed. Record sources, the logs inspected and their
+coverage in the review. State only what those observations support; they do not
+reveal a model's prior training. Missing logs or provenance evidence block a
+provenance clearance. Disallowed solution use requires a CTO decision about a
+fresh independently derived attempt, even if the answer is accepted.
+
 ## Review and learn
 
 1. Inspect the assigned part's statement, source, tests, git changes/history,

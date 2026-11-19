@@ -6,6 +6,15 @@ description: Gather missing AoC 2015–2025 statement text for an assigned part 
 Follow `aoc-workflow`. Work only on the CTO-authorized day and part in the
 `scala3-aoc` checkout. Read its `AGENTS.md` and applicable local skills.
 
+## Official material only
+
+Obtain puzzle rules, examples and personal input only from the official Advent
+of Code site or its validated cache in the canonical checkout. Do not look for
+solutions, editorials, hints, walkthroughs or answer lists elsewhere, and do not
+pass such material to solver. Extract puzzle articles only; exclude account
+acceptance messages and previously accepted personal answers from solver
+material. Record official source URLs and cached paths in the handoff.
+
 ## Gather and validate
 
 1. Check `YYYY/problems/DayNNProblem.txt` and

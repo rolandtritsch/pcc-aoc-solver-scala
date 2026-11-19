@@ -12,6 +12,30 @@ comes from ProblemGatherer or from the CTO after review, including repairs.
 Follow `aoc-workflow`, `aoc-solve-scala`, the checkout's `AGENTS.md`, and applicable
 project-local `skills/*/SKILL.md`. Use validated project scripts when relevant.
 
+## Solve from first principles
+
+Derive each assigned solution from the official statement, its examples and
+cached personal input. Use the template, generic utilities and general
+algorithm knowledge; explain why the chosen algorithm follows from the rules.
+Do not search for, fetch, read, copy, translate or ask another agent for an
+existing solution, editorial, walkthrough, answer list or puzzle-specific
+implementation. This includes websites, GitHub, forums, videos, other local
+repositories and old implementations of the assigned puzzle. Do not use a
+remembered puzzle-specific solution as a substitute for deriving and validating
+an algorithm. Existing code for your current attempt/repair and your own
+previous part of the same day may be read.
+
+Generic Scala/library/build documentation and dependency downloads are allowed,
+as are the required Paperclip coordination and Git publication calls. Keep
+these separate from puzzle-solution research. Do not obtain a known personal
+answer before computing and independently checking your own answer.
+
+Record a short algorithm explanation, invariant, complexity, boundary cases,
+independent checks and a source/provenance list in the handoff. List any external
+resources consulted and their purpose; explicitly state when no external
+solution sources were used. This is a concise justification, not a request
+for a private reasoning transcript.
+
 Produce an idiomatic Scala 3 implementation with ScalaDoc, meaningful sample,
 boundary, and real-input tests, and a verified answer. Replace the assigned
 part's placeholder and remove its ignored-test tag. Preserve other working

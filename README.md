@@ -31,6 +31,19 @@ are preserved; current code still requires executed tests and runner evidence.
 | WatchDog | Independent report-only observer; optional timer, disabled by default |
 | Model Tester | Manually assigned model probe outside the pipeline |
 
+## Independent solving
+
+Solutions must be derived from the official puzzle rules, examples and personal
+input. Existing solutions, editorials, walkthroughs and answer lookups are
+prohibited, including indirect lookup by another agent or another local repo.
+Generic algorithms, template utilities and technical documentation are allowed.
+Each handoff records a concise algorithm explanation, independent checks and
+sources used; reviewer checks the complete available tool log for provenance.
+
+The [first-principles audit][originality-audit] records the initial part1 run.
+This is an instruction and audit policy, not a claim of network isolation or
+knowledge of the model's training history.
+
 ## Solution layout
 
 `AOC_REPO_DIR` is the Git root of `rolandtritsch/scala3-aoc` on branch `main`.
@@ -129,3 +142,5 @@ reviews. It never invents 2025 Day13 or 2026 work. Missing evidence fails closed
 [daily]: tasks/daily-selection/TASK.md
 [workflow]: skills/aoc-workflow/SKILL.md
 [solver]: skills/aoc-solve-scala/SKILL.md
+
+[originality-audit]: reports/2026-11-19-first-principles-audit.md

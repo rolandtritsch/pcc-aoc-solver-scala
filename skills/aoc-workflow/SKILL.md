@@ -26,6 +26,24 @@ authorization identity through both parts. Accepted part2 ends the day.
 Rejected attempts are reviewed, then wait for a later daily CTO repair
 selection. No specialist creates another day or retries rejected code itself.
 
+## Independent solving and provenance
+
+All puzzle implementations must be derived from the official rules, examples
+and personal input, with concise algorithmic justification and independent
+checks. Do not obtain existing solutions, editorials, walkthroughs or answers
+from the web, other repositories or another agent. Do not seed solver handoffs
+with historical personal answers. Existing acceptance is checked by submitter
+after the answer has been independently derived and verified.
+
+Template code, generic utilities, general algorithms and generic technical
+documentation are allowed; an existing implementation of the assigned puzzle
+is not. Gatherer supplies official material only. Solver records sources used
+and its algorithm/invariant, complexity and verification evidence. Reviewer
+checks provenance against complete available tool logs, not just the agent's
+claim or an accepted answer. Record missing evidence as unknown, not as proof
+of independent solving. Report disallowed material to CTO; do not pass the
+provenance check merely because tests or submission succeed.
+
 ## Year layout and bootstrap
 
 `AOC_REPO_DIR` is the canonical Git root of rolandtritsch/scala3-aoc, not a

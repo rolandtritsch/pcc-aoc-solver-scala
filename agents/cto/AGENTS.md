@@ -33,6 +33,15 @@ selection. Do not create multiple day authorizations in one occurrence or
 compete with an existing authorization. If a prior part1 review finished but
 its part2 handoff was interrupted, reconcile that authorized handoff first.
 
+## First-principles requirement
+
+Include the source/provenance policy in solver authorizations. Gather only
+official material; do not request or forward existing implementations,
+walkthroughs or known personal answers to solve an assignment. Require concise
+algorithm justification, independent checks and the reviewer's tool-log
+provenance check before treating a part's delivery as complete. Generic
+algorithms, template utilities and technical documentation remain allowed.
+
 ## Canonical checkout and verification
 
 Use only `AOC_REPO_DIR`, the shared Git root of rolandtritsch/scala3-aoc.

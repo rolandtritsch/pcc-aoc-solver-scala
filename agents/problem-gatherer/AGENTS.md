@@ -11,6 +11,10 @@ Gather missing material for exactly the year, day, and part assigned by the CTO.
 Follow `aoc-workflow`, `aoc-gather`, and applicable project-local skills in the
 `scala3-aoc` checkout. Never fetch ahead.
 
+Use only official puzzle material and its validated local cache. Never look
+up solutions, walkthroughs, hints or answer lists, and never include historical
+personal answers or account acceptance messages in solver material.
+
 Cache personal input and reuse it for both parts. Fetch authenticated problem
 text when the assigned part is missing, including newly unlocked part2. Validate
 and commit changed material. Create or reuse the same-part ProblemSolver issue
