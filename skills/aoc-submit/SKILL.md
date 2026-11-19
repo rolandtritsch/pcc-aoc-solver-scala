@@ -10,7 +10,7 @@ Follow `aoc-workflow` and applicable project-local skills. Use plain HTTP with
 
 1. Verify assignment year, day, part, answer, full commit, and test evidence.
    Before any computational answer submission or reconciliation, load
-   `aoc-solve-scala` and run its `scripts/aoc_solver_publish.py verify` helper
+   `aoc-solve-scala` and run its `$AOC_COMPANY_PACKAGE_DIR/skills/aoc-solve-scala/scripts/aoc_solver_publish.py verify` helper
    with the assigned day/part/answer/full commit. It checks committed formatting,
    active assigned-day tests, runner answer and clean HEAD/tracking/live-remote
    equality. Record its receipt. On failure, preserve the assignment and report
@@ -41,7 +41,13 @@ Follow `aoc-workflow` and applicable project-local skills. Use plain HTTP with
    expose the cookie. Nonfinal failures do not create review or repair issues.
 5. On acceptance or rejection, create/reuse a same-part **Solution Reviewer**
    issue, also matching the submission attempt/commit. Include exact verdict,
-   answer, commit, test results, artifacts, and upstream links. Mark submission
+   answer, full commit, test results, artifacts, solver run IDs, and upstream links.
+   Preserve the full fresh fenced `aoc-solver-publication` receipt in the review
+   issue **description**; the gate binds the result commit to that receipt even
+   for a generic submission-attempt title. Never reconstruct it from the review.
+   For a noncomputational finale, include a fenced `aoc-review-context` JSON
+   object with `kind: "finale"` and `solutionCommit` set to the verified full
+   checkout commit instead of fabricating a computational receipt. Mark submission
    done only after verifying that handoff. A rejected submission task is done,
    but the puzzle part remains unfinished.
 

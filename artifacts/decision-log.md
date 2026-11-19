@@ -19,3 +19,16 @@
 - Verified 38 passing project tests, formatting, runner answer `138`, clean checkout and HEAD/tracking/live-remote equality.
 - Independent operator check also produced `138` from the cached personal input.
 - Advent of Code accepted `level=1`, `answer=138` with the authoritative “That's the right answer!” verdict. Final company review is in progress.
+
+## Review workflow fixes
+
+- Reviewed AOC-6/AOC-11 and completed the solver-log provenance audit for both
+  accepted Day01 parts. Persisted validated audit supplements without changing
+  their reviewed solution commits or submission verdicts.
+- Deployed shared receipt-bound review validation, explicit provenance coverage,
+  owned CTO check completion and direct company-package helper discovery.
+- Replaced duplicate scala3-aoc validators with delegating entry points; commit
+  `d7523f0528342361679e15d454de7f68485099d9` is pushed and remotely verified.
+- Recovered AOC-9's completed no-work decision. All 128 package tests pass locally
+  and live; the consolidated live verifier passed formatting/tests/answer/parity.
+- See reports/2026-11-19-review-workflow-fixes.md for evidence and adoption limits.

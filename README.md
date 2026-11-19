@@ -103,8 +103,8 @@ This repository alone does not deploy a company or activate a live schedule.
 Do not replace the old company or reuse its cycle timestamp or deployment IDs.
 
 The portable defaults use `/paperclip/workspaces/scala3-aoc` and company scripts
-under `/paperclip/company-packages/pcc-aoc-solver-scala`. Override these with
-actual deployed paths for all agents and make the CTO/WatchDog launchers
+under `/paperclip/company-packages/pcc-aoc-solver-scala`. Set `AOC_COMPANY_PACKAGE_DIR` to the deployed package root and override these
+with actual deployed paths for all agents and make the CTO/WatchDog launchers
 executable. Configure `AOC_CYCLE_STARTED_AT` to the new company's activation
 instant; the placeholder `SET_AT_DEPLOYMENT` fails closed until configured.
 Confirm the solution checkout exists, has the correct origin and clean main
@@ -135,7 +135,11 @@ python3 -B -m unittest discover -s skills/aoc-watchdog/scripts/tests -v
 
 The gate distinguishes identical day/part numbers across years, requires
 matching year-qualified review results, and stops after all 524 accepted
-reviews. It never invents 2025 Day13 or 2026 work. Missing evidence fails closed.
+reviews. It never invents 2025 Day13 or 2026 work. Missing evidence fails closed. Review results bind to the submitter's full
+publication receipt and require explicit complete solver-log provenance coverage.
+The reviewer uses bundled validators under `$AOC_COMPANY_PACKAGE_DIR`; mechanical
+checks reuse the publication verifier. A waiting daily check records its decision
+and completes its occurrence without starting more puzzle work.
 
 [aoc]: https://adventofcode.com/events
 [repo]: https://github.com/rolandtritsch/scala3-aoc

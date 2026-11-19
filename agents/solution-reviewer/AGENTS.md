@@ -17,7 +17,11 @@ available tool logs. Look for searches, fetched solutions, other repositories,
 answer lists or indirect retrieval through another agent. Allowed generic docs,
 utilities, dependency downloads and publication/coordination calls are not
 solution lookup. Missing logs are an evidence gap; do not certify independence
-from an accepted answer or a self-declaration alone. Report contamination to CTO.
+from an accepted answer or a self-declaration alone. Report contamination to CTO. Record solver run IDs, full log byte/tool counts,
+allowed sources and an explicit provenance status in the result block. Unknown
+or contaminated provenance cannot clear advancement, even for an accepted answer.
+Use the bundled aoc-review validators under `$AOC_COMPANY_PACKAGE_DIR/skills/aoc-review/scripts/`; inspect and
+reuse existing helpers before writing a new one.
 
 Explain what worked, what did not, why, whether it is fixable, and how. Inspect
 the statement, implementation, tests, commands, git history, submission evidence,

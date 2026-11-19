@@ -21,6 +21,22 @@ def result(mode, code):
 
 
 class WrapperTest(unittest.TestCase):
+    def setUp(self):
+        self.finisher = patch.object(wrapper, "finish_occurrence").start()
+        self.addCleanup(patch.stopall)
+
+    def test_wait_persists_disposition_before_success(self):
+        self.assertEqual(wrapper.run(["run"], result("wait", 1), Mock()), 0)
+        self.finisher.assert_called_once_with({"mode": "wait"})
+
+    def test_failed_disposition_is_not_success(self):
+        self.finisher.side_effect = OSError("unavailable")
+        self.assertEqual(wrapper.run(["run"], result("wait", 1), Mock()), 2)
+
+    def test_complete_persists_disposition(self):
+        self.assertEqual(wrapper.run(["run"], result("complete", 1), Mock()), 0)
+        self.finisher.assert_called_once_with({"mode": "complete"})
+
     def test_configuration_hello_probe_checks_provider_without_cycle_credentials(self):
         probe = Mock(return_value=Mock(returncode=0))
         check = Mock()
@@ -76,6 +92,38 @@ class WrapperTest(unittest.TestCase):
         launch = Mock();check = Mock()
         wrapper.run(["--version"], check, launch)
         check.assert_not_called();launch.assert_called_once()
+
+class DispositionTest(unittest.TestCase):
+    def test_wait_updates_only_owned_issue_with_run_audit_header(self):
+        env = {"PAPERCLIP_TASK_ID":"task", "PAPERCLIP_API_URL":"https://example.invalid",
+               "PAPERCLIP_API_KEY":"test-key", "PAPERCLIP_RUN_ID":"run",
+               "PAPERCLIP_COMPANY_ID":"company", "PAPERCLIP_AGENT_ID":"cto"}
+        seen=[]
+        def open_request(req, timeout):
+            seen.append(req)
+            response=Mock()
+            value=({"companyId":"company","assigneeAgentId":"cto","status":"in_progress"}
+                   if req.method=='GET' else {"status":"done"})
+            response.__enter__=Mock(return_value=io.StringIO(json.dumps(value)))
+            response.__exit__=Mock(return_value=False)
+            return response
+        opener=Mock();opener.open.side_effect=open_request
+        with patch.dict(os.environ,env,clear=True),patch.object(wrapper.urllib.request,'build_opener',return_value=opener):
+            wrapper.finish_occurrence({"mode":"wait"})
+        self.assertEqual([r.method for r in seen],['GET','PATCH'])
+        self.assertEqual(seen[-1].get_header('X-paperclip-run-id'),'run')
+        self.assertEqual(json.loads(seen[-1].data)['status'],'done')
+
+    def test_foreign_owner_is_preserved(self):
+        env={"PAPERCLIP_TASK_ID":"task","PAPERCLIP_API_URL":"https://example.invalid",
+             "PAPERCLIP_API_KEY":"test-key","PAPERCLIP_RUN_ID":"run",
+             "PAPERCLIP_COMPANY_ID":"company","PAPERCLIP_AGENT_ID":"cto"}
+        response=Mock();response.__enter__=Mock(return_value=io.StringIO(json.dumps({"companyId":"other"})))
+        response.__exit__=Mock(return_value=False)
+        opener=Mock();opener.open.return_value=response
+        with patch.dict(os.environ,env,clear=True),patch.object(wrapper.urllib.request,'build_opener',return_value=opener):
+            with self.assertRaises(ValueError):wrapper.finish_occurrence({"mode":"wait"})
+        self.assertEqual(opener.open.call_count,1)
 
 
 if __name__ == "__main__":

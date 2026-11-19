@@ -21,7 +21,12 @@ Look specifically for existing puzzle solutions, editorials, walkthroughs,
 answer lists, unrelated local/remote solution repositories or delegated lookup.
 Generic technical docs, template/utilities, dependency downloads and required
 Git/Paperclip calls are allowed. Record sources, the logs inspected and their
-coverage in the review. State only what those observations support; they do not
+coverage in the review. Record every solver attempt run ID, complete log byte
+count and tool-call count, the allowed sources and an explicit provenance
+verdict. A handoff, Git reflog or absence of a search in those artifacts cannot
+replace the tool-log audit. Missing/truncated logs mean `unknown`; disallowed
+material means `contaminated`. Neither clears accepted advancement. State only what those observations
+support; they do not
 reveal a model's prior training. Missing logs or provenance evidence block a
 provenance clearance. Disallowed solution use requires a CTO decision about a
 fresh independently derived attempt, even if the answer is accepted.
@@ -37,7 +42,17 @@ fresh independently derived attempt, even if the answer is accepted.
    Separate observed facts, hypotheses, and missing information. An accepted
    answer does not prove every boundary case is correct. A rejected answer is
    not explained until there is evidence for the proposed cause.
-3. Compare with previous reviews: identify repeated manual work, repeated errors,
+3. Before creating a helper, inspect the bundled skill scripts and existing
+   checkout helpers. Use `$AOC_COMPANY_PACKAGE_DIR/skills/aoc-review/scripts/verify_review_evidence.py
+   --year YYYY --day NN --part P --answer ANSWER --commit FULL_SHA` for mechanical
+   verification before making improvements. This delegates to the existing
+   publication helper's **verify** mode, including formatting, active assigned-day
+   tests, exact runner answer, and clean HEAD/tracking/live-remote parity both
+   before and after checks. It never publishes or creates a task. For a finale,
+   use the authenticated prerequisite/completion evidence instead. Do not create
+   another validator or evidence checker. An installed compatibility wrapper in
+   scala3-aoc must delegate to the bundled helper rather than duplicate it.
+   Compare with previous reviews: identify repeated manual work, repeated errors,
    reusable problem-solving techniques, and existing skills/scripts worth reusing.
    Distill a skill when a validated technique has a clear reusable trigger;
    extend an existing skill rather than duplicating it. Build a script when
@@ -81,7 +96,7 @@ Publish the report in the review issue's comment or document before disposition:
 Also write this fenced JSON in the final review comment (use actual values):
 
 ```aoc-review-result
-{"reviewIssueId":"<current issue UUID>","year":2015,"day":1,"part":1,"solutionCommit":"<reviewed commit>","accepted":true,"repairRequired":false}
+{"reviewIssueId":"<current issue UUID>","year":2015,"day":1,"part":1,"solutionCommit":"<full reviewed commit>","accepted":true,"repairRequired":false,"provenance":{"status":"clear","sources":["official statement/input and allowed utilities"],"solverRuns":[{"runId":"<solver run UUID>","logBytes":12345,"toolCalls":12,"complete":true}]}}
 ```
 
 Set `accepted` only from authoritative site evidence; record `repairRequired`
@@ -97,9 +112,19 @@ review `done`:
 
 1. Confirm the final comment carries the fenced block with actual values,
    never the `<...>` placeholders.
-2. Run `scripts/verify_review_block.py --issue-id <UUID> --title "<issue
-   title>"` with the comment body on stdin; it exits non-zero naming the
-   exact defect (missing block, bad JSON, review/day/part/commit mismatch).
+2. Fetch this issue's full JSON from the API into run scratch (including its
+   description and the submitter's unchanged `aoc-solver-publication` receipt).
+   Run `python3 $AOC_COMPANY_PACKAGE_DIR/skills/aoc-review/scripts/verify_review_block.py
+   --issue-file /path/to/scratch/issue.json --body-file /path/to/scratch/report.md`.
+   Use the deployed company package path from `AOC_COMPANY_PACKAGE_DIR`.
+   Runtime skill-loader directories may contain only SKILL.md, without scripts.
+   Do not recreate this script in the solution checkout.
+   It exits non-zero for identity/commit mismatches or missing provenance coverage.
+   Reviewer's result and title alone cannot establish the expected commit.
+   This validates audit declarations; the reviewer must actually inspect logs.
+   A noncomputational finale uses the submitter's `aoc-review-context` with
+   `kind: finale`, full `solutionCommit`, and provenance `status: not_applicable`
+   with an explicit reason. Never exempt a computational part.
 3. Mark `done` only on exit 0. A failing check keeps the review open and
    recorded — never mark a block-less review `done`.
 

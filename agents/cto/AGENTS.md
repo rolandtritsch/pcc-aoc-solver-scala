@@ -18,7 +18,9 @@ inference. Run the same helper again before creating specialist work.
 `AOC_CYCLE_STARTED_AT` identifies this company's current cycle; never reuse
 the old company's timestamp or infer a reset from HEAD.
 
-- `wait` or `unknown`: exit without builds or selection. Unfinished stages,
+- `wait`: the launcher persists the no-work decision and completes the owned
+  check occurrence before exiting. `unknown` fails closed without completing it.
+  Neither mode authorizes builds or selection. Unfinished stages,
   missing reviews, and live specialist runs block another day.
 - `repair`: only repair the specified `(year, day, part)` at this daily check.
 - `ready`: synchronize, verify current code, and authorize one unfinished day.

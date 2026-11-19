@@ -68,10 +68,12 @@ cross-check evidence, material paths, and relevant review findings. Do not put
 credentials in it. The helper appends the exact answer, full commit hash and
 verification receipt; it resolves the submitter from the company API.
 
-Using this skill's base directory from the skill tool response:
+Use the deployed `AOC_COMPANY_PACKAGE_DIR` package root. Runtime skill-loader
+directories may omit supporting scripts; do not search other repositories or
+recreate a missing bundled helper.
 
 ```bash
-python3 <skill-base>/scripts/aoc_solver_publish.py publish \
+python3 $AOC_COMPANY_PACKAGE_DIR/skills/aoc-solve-scala/scripts/aoc_solver_publish.py publish \
   --year YYYY --day NN --part P --answer ANSWER --handoff /path/to/run-scratch/handoff.json
 ```
 
@@ -99,7 +101,7 @@ explicitly preserved; the helper uses direct subprocesses instead.
 A downstream agent can independently check an existing computational handoff:
 
 ```bash
-python3 <skill-base>/scripts/aoc_solver_publish.py verify \
+python3 $AOC_COMPANY_PACKAGE_DIR/skills/aoc-solve-scala/scripts/aoc_solver_publish.py verify \
   --year YYYY --day NN --part P --answer ANSWER --commit FULL_SOLUTION_HASH
 ```
 

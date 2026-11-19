@@ -73,16 +73,21 @@ root AGENTS.md discovery guidance; year-specific artifacts stay in YYYY.
 
 ## Gate and evidence
 
-The CTO launcher runs `scripts/aoc_cycle_gate.py` before inference. CTO also
+The CTO launcher runs `scripts/aoc_cycle_gate.py` before inference. For `wait` or `complete`, the launcher records the decision
+and marks its owned coordination task done before exiting; a failed status
+write fails the run. Unknown evidence fails closed without completing the task. CTO also
 checks it before selecting and immediately before creating work. It is
 read-only, paginated, bounded, year-aware and fail-closed. Current-cycle
 specialist tasks at or after `AOC_CYCLE_STARTED_AT` gate progress. Unfinished
 stages, missing successful review, live specialists or ambiguous evidence
 mean wait. Rejected reviews permit only the same year/day/part repair.
-Completed acceptance requires a matching fenced year-qualified result:
+Completed acceptance requires a full commit matching the submitter's publication
+receipt in the review description and explicit complete solver-log provenance
+coverage. Title matching alone is insufficient. The self-check and this gate
+share `scripts/aoc_review_contract.py`. A matching result looks like:
 
 ```aoc-review-result
-{"reviewIssueId":"actual UUID","year":2015,"day":1,"part":1,"solutionCommit":"actual full hash","accepted":true,"repairRequired":false}
+{"reviewIssueId":"actual UUID","year":2015,"day":1,"part":1,"solutionCommit":"actual full hash","accepted":true,"repairRequired":false,"provenance":{"status":"clear","sources":["official statement/input"],"solverRuns":[{"runId":"actual UUID","logBytes":12345,"toolCalls":12,"complete":true}]}}
 ```
 
 All 524 accepted completed reviews with no open specialist work yield

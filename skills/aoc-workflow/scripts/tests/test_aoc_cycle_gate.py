@@ -5,6 +5,9 @@ import unittest
 spec = importlib.util.spec_from_file_location("gate", Path(__file__).parents[1] / "aoc_cycle_gate.py")
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
+import json
+COMMIT = "abc12345678" + "0" * 29
+PROVENANCE = {"status": "clear", "sources": ["official statement"], "solverRuns": [{"runId": "solver-run", "logBytes": 100, "toolCalls": 1, "complete": True}]}
 SINCE = "2026-10-10T18:00:00Z"
 AGENTS = [{"id": name, "name": name} for name in list(gate.STAGES) + ["WatchDog", "Model Tester", "CTO"]]
 
@@ -13,7 +16,8 @@ def issue(stage="review", status="done", created="2026-10-10T19:00:00Z", day=1):
     name = next(name for name, value in gate.STAGES.items() if value == stage)
     return {"id": "issue-" + stage, "identifier": "AOC-" + stage,
             "title": f"AoC 2025 Day{day:02} part1: {stage}", "createdAt": created,
-            "status": status, "assigneeAgentId": name}
+            "status": status, "assigneeAgentId": name,
+            "description": "```aoc-solver-publication\n" + json.dumps({"year":2025,"day":day,"part":1,"commit":COMMIT}) + "\n```"}
 
 
 def accepted(id):
@@ -21,7 +25,7 @@ def accepted(id):
     match = __import__('re').search(r"review-(20\d{2})-(\d+)-([12])$", id)
     year, day, number = map(int, match.groups()) if match else (2025, 1, 1)
     result = {"reviewIssueId": id, "year": year, "day": day, "part": number,
-              "solutionCommit": "abc12345678", "accepted": True, "repairRequired": False}
+              "solutionCommit": COMMIT, "accepted": True, "repairRequired": False, "provenance": PROVENANCE}
     return [{"body": "```aoc-review-result\n" + json.dumps(result) + "\n```"}]
 
 
@@ -39,6 +43,7 @@ class GateTest(unittest.TestCase):
             row["id"] = f"review-{year}-{day}-{part_number}"
             row["identifier"] = f"AOC-{year}-{day}-{part_number}"
             row["title"] = f"AoC {year} Day{day:02} part{part_number}: review"
+            row["description"] = "```aoc-solver-publication\n" + json.dumps({"year":year,"day":day,"part":part_number,"commit":COMMIT}) + "\n```"
             rows.append(row)
         return rows
 
@@ -48,7 +53,7 @@ class GateTest(unittest.TestCase):
             _, year, day, part_number = id.split("-")
             import json
             result = {"reviewIssueId": id, "year": int(year), "day": int(day), "part": int(part_number),
-                      "solutionCommit": "abc12345678", "accepted": True, "repairRequired": False}
+                      "solutionCommit": COMMIT, "accepted": True, "repairRequired": False, "provenance": PROVENANCE}
             return [{"body": "```aoc-review-result\n" + json.dumps(result) + "\n```"}]
         self.assertEqual(self.check(rows, reviewed), "complete")
 
@@ -71,7 +76,7 @@ class GateTest(unittest.TestCase):
         rows = self.season()
         def comments(id):
             if id != rows[-1]["id"]: return accepted(id)
-            return [{"body": '```aoc-review-result\n{"reviewIssueId":"review-2025-12-2","year":2025,"day":12,"part":2,"solutionCommit":"abc123","accepted":false,"repairRequired":true}\n```'}]
+            return [{"body": '```aoc-review-result\n{"reviewIssueId":"review-2025-12-2","year":2025,"day":12,"part":2,"solutionCommit":"abc1234567800000000000000000000000000000","accepted":false,"repairRequired":true,"provenance":{"status":"unknown"}}\n```'}]
         self.assertEqual(self.check(rows, comments), "repair")
 
     def test_live_specialist_after_last_review_still_waits(self):
@@ -114,11 +119,11 @@ class GateTest(unittest.TestCase):
         self.assertEqual(self.check([issue()], runs=[{"id": "run", "agentId": "Problem Solver"}]), "wait")
 
     def test_completed_rejection_permits_only_repair(self):
-        body = '```aoc-review-result\n{"reviewIssueId":"issue-review","year":2025,"day":1,"part":1,"solutionCommit":"abc123","accepted":false,"repairRequired":true}\n```'
+        body = '```aoc-review-result\n{"reviewIssueId":"issue-review","year":2025,"day":1,"part":1,"solutionCommit":"abc1234567800000000000000000000000000000","accepted":false,"repairRequired":true,"provenance":{"status":"unknown"}}\n```'
         self.assertEqual(self.check([issue()], lambda id: [{"body": body}]), "repair")
 
     def test_structured_result_identity_must_match(self):
-        body = '```aoc-review-result\n{"reviewIssueId":"another","year":2025,"day":1,"part":1,"solutionCommit":"abc123","accepted":true,"repairRequired":false}\n```'
+        body = '```aoc-review-result\n{"reviewIssueId":"another","year":2025,"day":1,"part":1,"solutionCommit":"abc1234567800000000000000000000000000000","accepted":true,"repairRequired":false,"provenance":{"status":"clear","sources":["official statement"],"solverRuns":[{"runId":"run","logBytes":100,"toolCalls":1,"complete":true}]}}\n```'
         with self.assertRaises(ValueError): self.check([issue()], lambda id: [{"body": body}])
 
     def test_unknown_pipeline_title_fails_closed(self):
@@ -127,12 +132,12 @@ class GateTest(unittest.TestCase):
 
     def test_success_record_for_another_commit_cannot_release_gate(self):
         row = issue(); row["title"] += " (attempt commit abc1234)"
-        body = '```aoc-review-result\n{"reviewIssueId":"issue-review","year":2025,"day":1,"part":1,"solutionCommit":"def5678","accepted":true,"repairRequired":false}\n```'
+        body = '```aoc-review-result\n{"reviewIssueId":"issue-review","year":2025,"day":1,"part":1,"solutionCommit":"def5678","accepted":true,"repairRequired":false,"provenance":{"status":"clear","sources":["official statement"],"solverRuns":[{"runId":"run","logBytes":100,"toolCalls":1,"complete":true}]}}\n```'
         with self.assertRaises(ValueError): self.check([row], lambda id: [{"body": body}])
 
     def test_matching_structured_success_releases_gate(self):
         row = issue(); row["title"] += " (attempt commit abc1234)"
-        body = '```aoc-review-result\n{"reviewIssueId":"issue-review","year":2025,"day":1,"part":1,"solutionCommit":"abc12345678","accepted":true,"repairRequired":false}\n```'
+        body = '```aoc-review-result\n{"reviewIssueId":"issue-review","year":2025,"day":1,"part":1,"solutionCommit":"abc1234567800000000000000000000000000000","accepted":true,"repairRequired":false,"provenance":{"status":"clear","sources":["official statement"],"solverRuns":[{"runId":"run","logBytes":100,"toolCalls":1,"complete":true}]}}\n```'
         self.assertEqual(self.check([row], lambda id: [{"body": body}]), "ready")
 
     def test_same_day_in_different_years_does_not_collide(self):
@@ -166,6 +171,35 @@ class GateTest(unittest.TestCase):
         body = accepted("issue-review")[0]["body"].replace('"repairRequired": false', '"repairRequired": true')
         self.assertEqual(self.check([issue()], lambda id: [{"body": body}],
                                    [{"id": "run", "agentId": "Problem Solver"}]), "wait")
+
+class ReviewContractRegressionTest(unittest.TestCase):
+    check = GateTest.check
+    def test_actual_generic_title_cannot_accept_unrelated_commit(self):
+        row = issue()
+        row["title"] = "AoC 2025 Day01 part1: review (submission attempt)"
+        wrong = accepted(row["id"])[0]["body"].replace(COMMIT, "f" * 40)
+        with self.assertRaisesRegex(ValueError, "handoff"):
+            self.check([row], lambda _: [{"body": wrong}])
+
+    def test_missing_handoff_receipt_blocks(self):
+        row = issue(); row["description"] = "Solution commit: " + COMMIT
+        with self.assertRaises(ValueError): self.check([row])
+
+    def test_provenance_cannot_clear_from_handoff_and_reflog_alone(self):
+        body = accepted("issue-review")[0]["body"]
+        result = json.loads(body.split("\n")[1]); result["provenance"] = {"status": "unknown"}
+        with self.assertRaisesRegex(ValueError, "provenance"):
+            self.check([issue()], lambda _: [{"body": "```aoc-review-result\n" + json.dumps(result) + "\n```"}])
+
+class DetailFetchTest(unittest.TestCase):
+    def test_truncated_list_description_is_replaced_before_validation(self):
+        full=issue(); compact=dict(full,description="truncated list preview")
+        calls=[]
+        def detail(row):
+            calls.append(row['id']); return full
+        result=gate.evaluate([compact],AGENTS,SINCE,accepted,[],detail)
+        self.assertEqual(result['mode'],'ready')
+        self.assertEqual(calls,[full['id']])
 
 
 if __name__ == "__main__":

@@ -8,6 +8,10 @@ import re
 import sys
 import time
 import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from aoc_review_contract import block, validate
 
 STAGES = {
     "Problem Gatherer": "gather", "Problem Solver": "solve",
@@ -42,16 +46,7 @@ def review_result(issue, comments):
     for body in bodies:
         match = re.search(r"```aoc-review-result\s*(\{.*?\})\s*```", body, re.S)
         if match:
-            result = json.loads(match.group(1))
-            if result.get("reviewIssueId") != issue["id"]:
-                raise ValueError("review result identity mismatch")
-            if (result.get("year"), result.get("day"), result.get("part")) != part(issue):
-                raise ValueError("review result part mismatch")
-            if not result.get("solutionCommit"):
-                raise ValueError("review result missing solution commit")
-            attempt = re.search(r"attempt commit ([0-9a-f]{7,40})", issue["title"], re.I)
-            if attempt and not result["solutionCommit"].startswith(attempt.group(1)):
-                raise ValueError("review result solution commit mismatch")
+            result = validate(issue, block(body, "aoc-review-result"))
             if result.get("accepted") is True and result.get("repairRequired") is False:
                 return "accepted"
             if result.get("repairRequired") is True:
@@ -60,7 +55,7 @@ def review_result(issue, comments):
     return "unknown"
 
 
-def evaluate(issues, agents, since, comments, live_runs):
+def evaluate(issues, agents, since, comments, live_runs, issue_detail=lambda row: row):
     start = timestamp(since)
     names = {a["id"]: a["name"] for a in agents}
     groups = {}
@@ -93,6 +88,7 @@ def evaluate(issues, agents, since, comments, live_runs):
         if not reviews:
             return {"mode": "wait", "part": selected, "reason": "completed review is missing"}
         latest = max(reviews, key=lambda i: timestamp(i["createdAt"]))
+        latest = issue_detail(latest)
         result = review_result(latest, comments(latest["id"]))
         if result != "accepted":
             return {"mode": "repair" if result == "repair" else "wait", "part": selected,
@@ -119,7 +115,7 @@ def main():
 
         opener = urllib.request.build_opener(NoRedirect)
 
-        def get(path):
+        def get(path, require_list=True):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError("gate telemetry deadline exceeded")
@@ -129,7 +125,7 @@ def main():
                 if len(data) > 1024 * 1024:
                     raise ValueError("gate response too large")
                 result = json.loads(data)
-                if not isinstance(result, list):
+                if require_list and not isinstance(result, list):
                     raise ValueError("gate response is not a list")
                 return result
 
@@ -145,7 +141,8 @@ def main():
             raise ValueError("issue pagination exceeded bound")
         result = evaluate(issues, agents, since,
                           lambda id: get("/api/issues/" + id + "/comments"),
-                          get(prefix + "/live-runs?minCount=0"))
+                          get(prefix + "/live-runs?minCount=0"),
+                          lambda row: get("/api/issues/" + row["id"], require_list=False))
         print(json.dumps(result))
         return 0 if result["mode"] == "ready" else 1
     except Exception as error:
