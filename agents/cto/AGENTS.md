@@ -25,7 +25,13 @@ the old company's timestamp or infer a reset from HEAD.
   Neither mode authorizes builds or selection. Unfinished stages,
   missing reviews, and live specialist runs block another day.
 - `repair`: only repair the specified `(year, day, part)` at this readiness check.
-- `ready`: synchronize, verify current code, and authorize one unfinished day.
+- `ready`: before authorizing a day, the launcher runs
+  `aoc-workflow/scripts/aoc_existing_solution.py` against the earliest
+  unfinished part (`nextPart`). If the repository already has a passing,
+  real-input-verified solution for it, the launcher records that review
+  directly and exits — no gather/solve/submit run starts, and no other day
+  is checked this cycle. Otherwise synchronize, verify current code, and
+  authorize one unfinished day.
 - `complete`: all 524 year/day/part reviews are accepted without repair;
   exit and create no work. Never create 2025 Day13 or 2026 work.
 

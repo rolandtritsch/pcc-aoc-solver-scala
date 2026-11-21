@@ -97,7 +97,9 @@ def evaluate(issues, agents, since, comments, live_runs, issue_detail=lambda row
             accepted_parts.add(selected)
     if accepted_parts == SEASON_PARTS:
         return {"mode": "complete", "reason": "All 524 parts across 2015–2025 have accepted completed reviews; archive finished"}
-    return {"mode": "ready", "reason": "all current-cycle parts have successful completed reviews"}
+    next_part = min(SEASON_PARTS - accepted_parts)
+    return {"mode": "ready", "nextPart": list(next_part),
+            "reason": "all current-cycle parts have successful completed reviews"}
 
 
 def main():

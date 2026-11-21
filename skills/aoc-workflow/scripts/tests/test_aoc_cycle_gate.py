@@ -99,6 +99,15 @@ class GateTest(unittest.TestCase):
     def test_successful_review_releases_gate(self):
         self.assertEqual(self.check([issue()]), "ready")
 
+    def test_ready_exposes_earliest_unfinished_part(self):
+        rows = self.season()[:-1]
+        result = gate.evaluate(rows, AGENTS, SINCE, accepted, ())
+        self.assertEqual(result["nextPart"], [2025, 12, 2])
+
+    def test_empty_company_next_part_is_first_day(self):
+        result = gate.evaluate([], AGENTS, SINCE, accepted, ())
+        self.assertEqual(result["nextPart"], [2015, 1, 1])
+
     def test_done_without_review_evidence_waits(self):
         self.assertEqual(self.check([issue()], lambda id: []), "wait")
 

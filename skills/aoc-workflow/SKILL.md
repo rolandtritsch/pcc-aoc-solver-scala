@@ -13,10 +13,13 @@ Day12 in 2025) follows the authenticated site's completion interaction.
 
 The CTO checks once daily at 06:00 UTC through the daily-selection routine
 (`0 6 * * *`), an hour after AoC's midnight-EST puzzle release, with interval
-heartbeats disabled. When the gate is clear,
-it authorizes at most one day, both parts sequentially, or the current day's
-repair. Manual board triggers can explicitly request a check. No specialist
-wakes the CTO.
+heartbeats disabled. When the gate is clear, it checks whether the earliest
+unfinished part already has a passing, real-input-verified solution in the
+repository (`aoc_existing_solution.py`); if so it records that review
+directly and waits for the next cycle, rather than re-running a pipeline for
+work that is already done. Otherwise it authorizes at most one day, both
+parts sequentially, or the current day's repair. Manual board triggers can
+explicitly request a check. No specialist wakes the CTO.
 CTO routine occurrences are outside puzzle stages.
 
 The cycle is gather → solve → submit → review for each computational part.
