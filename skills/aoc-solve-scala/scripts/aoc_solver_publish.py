@@ -140,7 +140,11 @@ class Board:
         self.company = os.environ["PAPERCLIP_COMPANY_ID"]
         self.source = os.environ["PAPERCLIP_TASK_ID"]
         self.agent = os.environ["PAPERCLIP_AGENT_ID"]
-        self.headers = {"Authorization": "Bearer " + os.environ["PAPERCLIP_API_KEY"],
+        # The ephemeral run-scoped PAPERCLIP_API_KEY cannot authenticate company
+        # reads/writes for this ssh/legacy-runner execution shape (upstream
+        # Paperclip gap; see paperclipai/paperclip#21591). Use a standing
+        # agent-scoped key bound under a non-reserved name instead.
+        self.headers = {"Authorization": "Bearer " + os.environ["AOC_PAPERCLIP_API_KEY"],
                         "Content-Type": "application/json",
                         "X-Paperclip-Run-Id": os.environ["PAPERCLIP_RUN_ID"]}
 

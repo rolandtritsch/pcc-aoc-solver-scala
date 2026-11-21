@@ -129,6 +129,14 @@ inherited configuration, not a fresh model evaluation. Read before changing
 provider bindings. Reviewer commits shared improvements; the next authorized
 publication or CTO synchronization pushes them.
 
+The CTO, Solver and Submitter also need a standing agent-scoped `AOC_PAPERCLIP_API_KEY`
+bound per agent (`paperclipai agent local-cli <agentId> --no-install-skills`,
+then bind the printed `pcp_...` key as a company secret and reference it under
+that name in `adapterConfig.env`). The ephemeral run-scoped `PAPERCLIP_API_KEY`
+cannot authenticate company reads/writes for this ssh/legacy-runner execution
+shape — an upstream Paperclip gap, see paperclipai/paperclip#21591 — so the
+workflow/solver scripts read `AOC_PAPERCLIP_API_KEY` instead.
+
 ## Verification
 
 Run from this package's root:

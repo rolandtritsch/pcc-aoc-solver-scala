@@ -136,7 +136,10 @@ source done with result/evidence/downstream link. Solver handoffs exclusively
 use its helper; reviewer has only the accepted-part1 continuation described
 above. All other review outcomes have no downstream task.
 
-Use `Authorization: Bearer $PAPERCLIP_API_KEY`, injected
+Use `Authorization: Bearer $AOC_PAPERCLIP_API_KEY` — a standing agent-scoped
+key bound per agent, not the ephemeral run-scoped `PAPERCLIP_API_KEY`, which
+cannot authenticate company reads/writes for this ssh/legacy-runner execution
+shape (upstream Paperclip gap; see paperclipai/paperclip#21591) — plus injected
 `PAPERCLIP_API_URL`/`PAPERCLIP_COMPANY_ID`, and
 `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID` plus JSON Content-Type on mutations.
 Mark blocked work with exact evidence gap, owner and unblock action using

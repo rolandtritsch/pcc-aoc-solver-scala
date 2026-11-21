@@ -106,7 +106,11 @@ def main():
     try:
         base = os.environ["PAPERCLIP_API_URL"].rstrip("/")
         company = os.environ["PAPERCLIP_COMPANY_ID"]
-        token = os.environ["PAPERCLIP_API_KEY"]
+        # The ephemeral run-scoped PAPERCLIP_API_KEY cannot authenticate company
+        # reads for this ssh/legacy-runner execution shape (upstream Paperclip
+        # gap; see paperclipai/paperclip#21591). Use a standing agent-scoped key
+        # bound under a non-reserved name instead.
+        token = os.environ["AOC_PAPERCLIP_API_KEY"]
         since = os.environ["AOC_CYCLE_STARTED_AT"]
         timestamp(since)
         deadline = time.monotonic() + 20

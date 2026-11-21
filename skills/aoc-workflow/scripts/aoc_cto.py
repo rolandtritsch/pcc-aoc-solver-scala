@@ -15,7 +15,11 @@ from aoc_existing_solution import find_existing_commit
 
 def _api(request_timeout=10):
     base = os.environ["PAPERCLIP_API_URL"].rstrip("/")
-    headers = {"Authorization": "Bearer " + os.environ["PAPERCLIP_API_KEY"],
+    # The ephemeral run-scoped PAPERCLIP_API_KEY cannot authenticate company
+    # reads/writes for this ssh/legacy-runner execution shape (upstream
+    # Paperclip gap; see paperclipai/paperclip#21591). Use a standing
+    # agent-scoped key bound under a non-reserved name instead.
+    headers = {"Authorization": "Bearer " + os.environ["AOC_PAPERCLIP_API_KEY"],
                "X-Paperclip-Run-Id": os.environ["PAPERCLIP_RUN_ID"],
                "Content-Type": "application/json"}
     class NoRedirect(urllib.request.HTTPRedirectHandler):

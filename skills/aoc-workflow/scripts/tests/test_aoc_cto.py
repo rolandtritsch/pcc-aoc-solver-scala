@@ -138,7 +138,7 @@ class WrapperTest(unittest.TestCase):
 class DispositionTest(unittest.TestCase):
     def test_wait_updates_only_owned_issue_with_run_audit_header(self):
         env = {"PAPERCLIP_TASK_ID":"task", "PAPERCLIP_API_URL":"https://example.invalid",
-               "PAPERCLIP_API_KEY":"test-key", "PAPERCLIP_RUN_ID":"run",
+               "AOC_PAPERCLIP_API_KEY":"test-key", "PAPERCLIP_RUN_ID":"run",
                "PAPERCLIP_COMPANY_ID":"company", "PAPERCLIP_AGENT_ID":"cto"}
         seen=[]
         def open_request(req, timeout):
@@ -158,7 +158,7 @@ class DispositionTest(unittest.TestCase):
 
     def test_foreign_owner_is_preserved(self):
         env={"PAPERCLIP_TASK_ID":"task","PAPERCLIP_API_URL":"https://example.invalid",
-             "PAPERCLIP_API_KEY":"test-key","PAPERCLIP_RUN_ID":"run",
+             "AOC_PAPERCLIP_API_KEY":"test-key","PAPERCLIP_RUN_ID":"run",
              "PAPERCLIP_COMPANY_ID":"company","PAPERCLIP_AGENT_ID":"cto"}
         response=Mock();response.__enter__=Mock(return_value=io.StringIO(json.dumps({"companyId":"other"})))
         response.__exit__=Mock(return_value=False)
@@ -170,7 +170,7 @@ class DispositionTest(unittest.TestCase):
 
 class ReconcileTest(unittest.TestCase):
     def env(self):
-        return {"PAPERCLIP_API_URL": "https://example.invalid", "PAPERCLIP_API_KEY": "test-key",
+        return {"PAPERCLIP_API_URL": "https://example.invalid", "AOC_PAPERCLIP_API_KEY": "test-key",
                "PAPERCLIP_RUN_ID": "run", "PAPERCLIP_COMPANY_ID": "company"}
 
     def opener_for(self, responses):
