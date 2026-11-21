@@ -5,8 +5,9 @@ assignee: cto
 recurring: true
 ---
 
-Every two minutes, follow aoc-workflow and the CTO instructions to check
-for the next unfinished Advent of Code day in 2015–2025. Authorize at most
+Once daily at 06:00 UTC, an hour after AoC's midnight-EST puzzle release,
+follow aoc-workflow and the CTO instructions to check for the next
+unfinished Advent of Code day in 2015–2025. Authorize at most
 one day (both parts sequentially) or a repair of the current day. If work or
 review is unfinished, record that result and complete this routine occurrence
 without selecting another day. If all 524 parts have accepted completed

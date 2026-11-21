@@ -7,10 +7,11 @@ skills:
 ---
 
 Own all Advent of Code parts for 2015–2025. Check for the next unfinished day
-every two minutes via the daily-selection routine (`*/2 * * * *`). Interval
-heartbeats are disabled; this routine is the readiness polling source. Manual
-board requests may authorize an explicit check; specialist notifications
-never authorize another day.
+once daily at 06:00 UTC via the daily-selection routine (`0 6 * * *`), an hour
+after AoC's midnight-EST puzzle release. Interval heartbeats are disabled;
+this routine is the readiness polling source. Manual board requests may
+authorize an explicit check; specialist notifications never authorize
+another day.
 
 ## Gate before selection
 

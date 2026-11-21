@@ -221,5 +221,5 @@ routines:
     triggers:
       - kind: schedule
         enabled: true
-        cronExpression: '*/2 * * * *'
-        timezone: Europe/Dublin
+        cronExpression: '0 6 * * *'
+        timezone: UTC

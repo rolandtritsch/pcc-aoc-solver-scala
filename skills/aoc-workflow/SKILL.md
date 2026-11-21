@@ -1,6 +1,6 @@
 ---
 name: aoc-workflow
-description: Coordinate all AoC 2015–2025 parts with two-minute readiness checks, year-aware evidence, and duplicate-safe handoffs
+description: Coordinate all AoC 2015–2025 parts with daily 06:00 UTC readiness checks, year-aware evidence, and duplicate-safe handoffs
 ---
 
 ## Scope and day authorization
@@ -11,8 +11,9 @@ Day00 and year 0000 are templates, excluded from progress. Never invent 2025
 Day13 or work outside these years. Final-day part2 (Day25 in 2015–2024,
 Day12 in 2025) follows the authenticated site's completion interaction.
 
-The CTO checks every two minutes through the daily-selection routine
-(`*/2 * * * *`), with interval heartbeats disabled. When the gate is clear,
+The CTO checks once daily at 06:00 UTC through the daily-selection routine
+(`0 6 * * *`), an hour after AoC's midnight-EST puzzle release, with interval
+heartbeats disabled. When the gate is clear,
 it authorizes at most one day, both parts sequentially, or the current day's
 repair. Manual board triggers can explicitly request a check. No specialist
 wakes the CTO.

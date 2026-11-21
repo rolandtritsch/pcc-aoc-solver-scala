@@ -10,11 +10,12 @@ authors:
 goals:
   - Complete all 524 parts across 262 days in 2015–2025, including authenticated finales
   - Publish tested, idiomatic, ScalaDoc-documented solutions to rolandtritsch/scala3-aoc
-  - Check readiness every two minutes and select the next unfinished day when clear
+  - Check readiness once daily at 06:00 UTC and select the next unfinished day when clear
   - Use 0000 as the template and YYYY as each independent year project
 ---
 
-The CTO checks readiness every two minutes and selects the earliest unfinished year/day when clear.
+The CTO checks readiness once daily at 06:00 UTC, an hour after AoC's
+midnight-EST puzzle release, and selects the earliest unfinished year/day when clear.
 Order is 2015 Day01 through Day25, then 2016, through 2024 Day25,
 then 2025 Day01 through Day12. Both parts belong to the authorized day;
 part2 starts only after part1 acceptance and completed review. Rejections
@@ -24,8 +25,8 @@ the authenticated completion interaction rather than an invented answer.
 
 Solutions go to [scala3-aoc][repo], in `YYYY/`, using `0000/` as the reusable
 template. Shared skills and improvements live at that repository's root.
-The [daily task][daily] and `.paperclip.yaml` define the two-minute routine
-assigned to the CTO; it is the only trigger for readiness checks, so the
+The [daily task][daily] and `.paperclip.yaml` define the once-daily 06:00 UTC
+routine assigned to the CTO; it is the only trigger for readiness checks, so the
 CTO's own interval heartbeat stays disabled. This package does not modify the
 original company. Agent/run health is monitored by Paperclip's native
 watchdog mechanisms rather than a company-owned observer agent.

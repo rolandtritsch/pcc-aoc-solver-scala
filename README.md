@@ -8,9 +8,10 @@ It covers 262 days and 524 parts: 25 days per year for 2015–2024 and 12 for
 ## Daily workflow
 
 The [daily selection task][daily] is the single trigger for readiness checks:
-a native routine assigned to the CTO, scheduled `*/2 * * * *` with
-`skip_missed` catch-up and `coalesce_if_active` concurrency. The CTO's own
-interval heartbeat stays disabled so this routine is the only thing waking it.
+a native routine assigned to the CTO, scheduled `0 6 * * *` UTC (an hour
+after AoC's midnight-EST puzzle release) with `skip_missed` catch-up and
+`coalesce_if_active` concurrency. The CTO's own interval heartbeat stays
+disabled so this routine is the only thing waking it.
 
 Order is year, day, then part, beginning at 2015 Day01 and ending at 2025
 Day12. Each selection authorizes one day. Work proceeds through gather → solve
@@ -98,7 +99,7 @@ prompt during setup; authenticated puzzle runs still require the cycle gate.
 
 Include tasks/routines in the import. Indent schedule trigger list items beneath `triggers:`; the portability
 parser silently drops indentationless YAML lists. Inspect the preview for the CTO-owned
-`daily-selection` routine, cron `*/2 * * * *`, timezone `Europe/Dublin`, and
+`daily-selection` routine, cron `0 6 * * *`, timezone `UTC`, and
 active status. Some import modes pause automations: after deployment verify
 and activate this routine, with the CTO runnable and its interval heartbeat off.
 This repository alone does not deploy a company or activate a live schedule.
