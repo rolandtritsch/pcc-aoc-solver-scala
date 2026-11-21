@@ -9,7 +9,7 @@ import json
 COMMIT = "abc12345678" + "0" * 29
 PROVENANCE = {"status": "clear", "sources": ["official statement"], "solverRuns": [{"runId": "solver-run", "logBytes": 100, "toolCalls": 1, "complete": True}]}
 SINCE = "2026-10-10T18:00:00Z"
-AGENTS = [{"id": name, "name": name} for name in list(gate.STAGES) + ["WatchDog", "Model Tester", "CTO"]]
+AGENTS = [{"id": name, "name": name} for name in list(gate.STAGES) + ["Other Agent", "CTO"]]
 
 
 def issue(stage="review", status="done", created="2026-10-10T19:00:00Z", day=1):
@@ -105,12 +105,9 @@ class GateTest(unittest.TestCase):
     def test_old_tasks_do_not_block(self):
         self.assertEqual(self.check([issue(status="blocked", created="2026-10-09T19:00:00Z")]), "ready")
 
-    def test_watchdog_and_model_tester_do_not_block(self):
-        rows = []
-        for name in ("WatchDog", "Model Tester"):
-            row = issue(status="in_progress"); row["assigneeAgentId"] = name
-            rows.append(row)
-        self.assertEqual(self.check(rows), "ready")
+    def test_non_pipeline_agent_does_not_block(self):
+        row = issue(status="in_progress"); row["assigneeAgentId"] = "Other Agent"
+        self.assertEqual(self.check([row]), "ready")
 
     def test_cancelled_premature_work_does_not_block(self):
         self.assertEqual(self.check([issue("gather", "cancelled")]), "ready")

@@ -16,7 +16,7 @@ The CTO checks every two minutes through the daily-selection routine
 it authorizes at most one day, both parts sequentially, or the current day's
 repair. Manual board triggers can explicitly request a check. No specialist
 wakes the CTO.
-WatchDog, Model Tester and CTO routine occurrences are outside puzzle stages.
+CTO routine occurrences are outside puzzle stages.
 
 The cycle is gather → solve → submit → review for each computational part.
 Only after authoritative acceptance and a successful completed part1 review

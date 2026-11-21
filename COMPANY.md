@@ -24,9 +24,11 @@ the authenticated completion interaction rather than an invented answer.
 
 Solutions go to [scala3-aoc][repo], in `YYYY/`, using `0000/` as the reusable
 template. Shared skills and improvements live at that repository's root.
-The [daily task][daily] and `.paperclip.yaml` define the two-minute routine;
-CTO interval heartbeats remain disabled. WatchDog and Model Tester stay
-outside the puzzle pipeline. This package does not modify the original company.
+The [daily task][daily] and `.paperclip.yaml` define the two-minute routine
+assigned to the CTO; it is the only trigger for readiness checks, so the
+CTO's own interval heartbeat stays disabled. This package does not modify the
+original company. Agent/run health is monitored by Paperclip's native
+watchdog mechanisms rather than a company-owned observer agent.
 
 [repo]: https://github.com/rolandtritsch/scala3-aoc
 [daily]: tasks/daily-selection/TASK.md

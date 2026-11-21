@@ -31,6 +31,5 @@ fi
 
 case "$(basename "$0")" in
     aoc-cto) exec python3 "$AOC_COMPANY_PACKAGE_DIR/skills/aoc-workflow/scripts/aoc_cto.py" "$@" ;;
-    aoc-watchdog) exec python3 "$AOC_COMPANY_PACKAGE_DIR/skills/aoc-watchdog/scripts/aoc_watchdog_runner.py" "$@" ;;
     *) exec /usr/local/bin/opencode "$@" ;;
 esac

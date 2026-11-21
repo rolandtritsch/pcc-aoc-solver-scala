@@ -7,10 +7,10 @@ It covers 262 days and 524 parts: 25 days per year for 2015–2024 and 12 for
 
 ## Daily workflow
 
-The CTO checks for the next unfinished day every two minutes through the
-[daily selection task][daily], a native scheduled routine with cron
-`*/2 * * * *`, `skip_missed` catch-up, and `coalesce_if_active` concurrency.
-CTO interval heartbeats remain disabled.
+The [daily selection task][daily] is the single trigger for readiness checks:
+a native routine assigned to the CTO, scheduled `*/2 * * * *` with
+`skip_missed` catch-up and `coalesce_if_active` concurrency. The CTO's own
+interval heartbeat stays disabled so this routine is the only thing waking it.
 
 Order is year, day, then part, beginning at 2015 Day01 and ending at 2025
 Day12. Each selection authorizes one day. Work proceeds through gather → solve
@@ -29,8 +29,9 @@ are preserved; current code still requires executed tests and runner evidence.
 | Problem Solver | Idiomatic Scala 3, active tests, verified commit and push |
 | Problem Submitter | Verify publication, submit or reconcile authoritative acceptance |
 | Solution Reviewer | Review each verdict, improve reusable skills, continue accepted part1 to part2 |
-| WatchDog | Independent report-only observer; optional timer, disabled by default |
-| Model Tester | Manually assigned model probe outside the pipeline |
+
+Agent/run health and liveness are monitored by Paperclip's native watchdog
+mechanisms; this package does not ship its own observer agent.
 
 ## Independent solving
 
@@ -91,7 +92,7 @@ paperclipai company import . --target new
 
 The package explicitly selects `adapter.runner: legacy` for OpenCode. The
 current Paperclip Runner rejects custom `command` launchers, which the CTO
-and WatchDog require. Preserve this choice when importing. The CTO launcher
+requires. Preserve this choice when importing. The CTO launcher
 allows only Paperclip's exact credential-free `Respond with hello.` verification
 prompt during setup; authenticated puzzle runs still require the cycle gate.
 
@@ -127,11 +128,6 @@ inherited configuration, not a fresh model evaluation. Read before changing
 provider bindings. Reviewer commits shared improvements; the next authorized
 publication or CTO synchronization pushes them.
 
-WatchDog remains independent and disabled by default, with its deterministic
-report-only runner and bundled offline checks. Configure its public UI root
-for the new company if enabling it. Historical reports are retained in the
-source repository rather than presented as evidence about this new company.
-
 ## Verification
 
 Run from this package's root:
@@ -140,7 +136,6 @@ Run from this package's root:
 python3 -B -m unittest discover -s skills/aoc-workflow/scripts/tests -v
 python3 -B -m unittest discover -s skills/aoc-solve-scala/scripts/tests -v
 python3 -B -m unittest discover -s skills/aoc-review/scripts/tests -v
-python3 -B -m unittest discover -s skills/aoc-watchdog/scripts/tests -v
 ```
 
 The gate distinguishes identical day/part numbers across years, requires

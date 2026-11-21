@@ -19,8 +19,7 @@ COPY runtime/agent.sh /usr/local/bin/aoc-agent
 COPY runtime/sshd_config /etc/ssh/sshd_config
 RUN chmod 755 /usr/local/bin/aoc-runtime-entrypoint /usr/local/bin/aoc-agent \
     && ln -s aoc-agent /usr/local/bin/aoc-opencode \
-    && ln -s aoc-agent /usr/local/bin/aoc-cto \
-    && ln -s aoc-agent /usr/local/bin/aoc-watchdog
+    && ln -s aoc-agent /usr/local/bin/aoc-cto
 
 ENV JAVA_HOME=/opt/java \
     PATH=/opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin \

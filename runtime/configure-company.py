@@ -39,7 +39,7 @@ def main():
     if not agents or any(agent["status"] != "paused" for agent in agents):
         raise SystemExit("Pause all company agents before migrating their environment")
     expected_names = {"CTO", "Problem Gatherer", "Problem Solver", "Problem Submitter",
-                      "Solution Reviewer", "WatchDog", "Model Tester"}
+                      "Solution Reviewer"}
     if {agent["name"] for agent in agents} != expected_names:
         raise SystemExit("Unexpected company agent roster")
     settings = client.request("/instance/settings/experimental")
@@ -71,7 +71,7 @@ def main():
         current = client.request(path + "/configuration")
         adapter = current["adapterConfig"]
         adapter["cwd"] = "/paperclip/workspaces/scala3-aoc"  # Controller-side source staging.
-        adapter["command"] = {"CTO": "/usr/local/bin/aoc-cto", "WatchDog": "/usr/local/bin/aoc-watchdog"}.get(
+        adapter["command"] = {"CTO": "/usr/local/bin/aoc-cto"}.get(
             agent["name"], "/usr/local/bin/aoc-opencode")
         env = adapter.setdefault("env", {})
         values = {

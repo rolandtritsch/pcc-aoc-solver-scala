@@ -43,15 +43,15 @@ python3 runtime/configure-company.py --company-id <company-id> \
 ```
 
 The script reads the existing Paperclip CLI login, stores the SSH private key in
-the Paperclip-encrypted vault, probes the environment, and assigns all seven
+the Paperclip-encrypted vault, probes the environment, and assigns all five
 agents using configuration revision checks. It preserves secret bindings and
 keeps agents paused. Afterward the vault owns the client key; retain an encrypted
 backup or remove the temporary local copy.
 
-The company remains on the legacy OpenCode runner because its CTO and WatchDog
-use custom launchers. Those wrappers select the staged repository dynamically,
-keep Paperclip's credential-broker PATH, and configure the known solution origin
-for explicit company publication. Set `AOC_PAPERCLIP_API_URL` to the controller's
+The company remains on the legacy OpenCode runner because its CTO uses a
+custom launcher. That wrapper selects the staged repository dynamically,
+keeps Paperclip's credential-broker PATH, and configures the known solution
+origin for explicit company publication. Set `AOC_PAPERCLIP_API_URL` to the controller's
 public URL so remote helpers can reach the API.
 
 ## Verify and update
