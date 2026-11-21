@@ -38,10 +38,10 @@ agents:
       env:
         OPENROUTER_API_KEY:
           kind: secret
-          requirement: optional
+          requirement: required
         GH_TOKEN:
           kind: secret
-          requirement: optional
+          requirement: required
   problem-gatherer:
     adapter:
       type: opencode_local
@@ -75,13 +75,13 @@ agents:
       env:
         OPENROUTER_API_KEY:
           kind: secret
-          requirement: optional
+          requirement: required
         AOC_SESSION:
           kind: secret
-          requirement: optional
+          requirement: required
         GH_TOKEN:
           kind: secret
-          requirement: optional
+          requirement: required
     runtime:
       heartbeat:
         enabled: false
@@ -119,10 +119,10 @@ agents:
       env:
         OPENROUTER_API_KEY:
           kind: secret
-          requirement: optional
+          requirement: required
         GH_TOKEN:
           kind: secret
-          requirement: optional
+          requirement: required
     runtime:
       heartbeat:
         enabled: false
@@ -160,10 +160,10 @@ agents:
       env:
         OPENROUTER_API_KEY:
           kind: secret
-          requirement: optional
+          requirement: required
         AOC_SESSION:
           kind: secret
-          requirement: optional
+          requirement: required
     runtime:
       heartbeat:
         enabled: false
@@ -201,10 +201,10 @@ agents:
       env:
         OPENROUTER_API_KEY:
           kind: secret
-          requirement: optional
+          requirement: required
         GH_TOKEN:
           kind: secret
-          requirement: optional
+          requirement: required
     runtime:
       heartbeat:
         enabled: false
@@ -246,7 +246,7 @@ agents:
       env:
         OPENROUTER_API_KEY:
           kind: secret
-          requirement: optional
+          requirement: required
   model-tester:
     adapter:
       type: opencode_local
@@ -270,7 +270,7 @@ agents:
       env:
         OPENROUTER_API_KEY:
           kind: secret
-          requirement: optional
+          requirement: required
     runtime:
       heartbeat:
         enabled: false
