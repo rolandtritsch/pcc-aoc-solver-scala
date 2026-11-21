@@ -103,13 +103,22 @@ and activate this routine, with the CTO runnable and its interval heartbeat off.
 This repository alone does not deploy a company or activate a live schedule.
 Do not replace the old company or reuse its cycle timestamp or deployment IDs.
 
-The portable defaults use `/paperclip/workspaces/scala3-aoc` and company scripts
-under `/paperclip/company-packages/pcc-aoc-solver-scala`. Set `AOC_COMPANY_PACKAGE_DIR` to the deployed package root and override these
-with actual deployed paths for all agents and make the CTO/WatchDog launchers
-executable. Configure `AOC_CYCLE_STARTED_AT` to the new company's activation
-instant; the placeholder `SET_AT_DEPLOYMENT` fails closed until configured.
-Confirm the solution checkout exists, has the correct origin and clean main
-branch, and contains `0000/` before activating the routine.
+Agents run in a dedicated execution environment with the prepared image in
+`runtime/`. Java, sbt, OpenCode, Git, GitHub CLI, and Python are installed in
+that image; they do not depend on tools in the controller's EFS volume.
+See [runtime deployment][runtime] for build, verification, and company binding.
+
+`cwd: /paperclip/workspaces/scala3-aoc` identifies the controller-side source
+checkout. Paperclip stages it into the SSH environment and restores work after
+each run. The runtime launcher sets `AOC_REPO_DIR` to the staged directory and
+uses company helpers baked into `/opt/aoc-company`. It prepares the known GitHub
+remote and `main` branch for the company's explicit publication workflow.
+
+Configure `AOC_CYCLE_STARTED_AT` to the new company's activation instant; the
+placeholder `SET_AT_DEPLOYMENT` fails closed until configured. Confirm the
+solution checkout exists, has the correct origin and clean main branch, and
+contains `0000/` before activating the routine. Bind every agent to the dedicated
+environment; importing the package alone does not create or assign it.
 
 Bind vault-backed `OPENROUTER_API_KEY`, `AOC_SESSION` (gatherer/submitter), and
 GitHub authentication for agents publishing solutions. Never copy credentials
@@ -149,3 +158,5 @@ and completes its occurrence without starting more puzzle work.
 [solver]: skills/aoc-solve-scala/SKILL.md
 
 [originality-audit]: reports/2026-11-19-first-principles-audit.md
+
+[runtime]: runtime/README.md

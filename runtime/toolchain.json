@@ -1,0 +1,13 @@
+{
+  "java": {
+    "version": "25.0.5.1+2",
+    "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5.1%2B2/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5.1_2.tar.gz",
+    "sha256": "760f91b22c3efc9bd1b64ff950598231be82928cc807e30691a0e7a2995a62c0"
+  },
+  "sbt": {
+    "version": "2.0.10",
+    "url": "https://github.com/sbt/sbt/releases/download/v2.0.10/sbt-2.0.10.tgz",
+    "sha256": "783fe0c278564e67fbd14ecaa9ace6b9433cf8ece0ad8f50ad436cb24622105c"
+  },
+  "opencode": "1.19.6"
+}

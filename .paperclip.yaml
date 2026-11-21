@@ -19,21 +19,21 @@ agents:
             value: deepseek/deepseek-v4-flash-0731
           HOME:
             type: plain
-            value: /paperclip
+            value: /home/paperclip
           PATH:
             type: plain
-            value: /paperclip/.asdf/shims:/paperclip/.asdf/bin:/usr/local/bin:/usr/bin:/bin
+            value: /opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin
           AOC_COMPANY_PACKAGE_DIR:
             type: plain
-            value: /paperclip/company-packages/pcc-aoc-solver-scala
+            value: /opt/aoc-company
           AOC_REPO_DIR:
             type: plain
-            value: /paperclip/workspaces/scala3-aoc
+            value: .
           AOC_CYCLE_STARTED_AT:
             type: plain
             value: SET_AT_DEPLOYMENT
         cwd: /paperclip/workspaces/scala3-aoc
-        command: /paperclip/company-packages/pcc-aoc-solver-scala/skills/aoc-workflow/scripts/aoc_cto.py
+        command: /usr/local/bin/aoc-cto
     inputs:
       env:
         OPENROUTER_API_KEY:
@@ -47,6 +47,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
+        command: /usr/local/bin/aoc-opencode
         model: deepseek/deepseek-v4-flash-0731
         env:
           PAPERCLIP_OPENCODE_PROVIDERS:
@@ -57,16 +58,16 @@ agents:
             value: deepseek/deepseek-v4-flash-0731
           HOME:
             type: plain
-            value: /paperclip
+            value: /home/paperclip
           PATH:
             type: plain
-            value: /paperclip/.asdf/shims:/paperclip/.asdf/bin:/usr/local/bin:/usr/bin:/bin
+            value: /opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin
           AOC_COMPANY_PACKAGE_DIR:
             type: plain
-            value: /paperclip/company-packages/pcc-aoc-solver-scala
+            value: /opt/aoc-company
           AOC_REPO_DIR:
             type: plain
-            value: /paperclip/workspaces/scala3-aoc
+            value: .
           AOC_CYCLE_STARTED_AT:
             type: plain
             value: SET_AT_DEPLOYMENT
@@ -91,6 +92,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
+        command: /usr/local/bin/aoc-opencode
         model: deepseek/deepseek-v4-pro-0813
         env:
           PAPERCLIP_OPENCODE_PROVIDERS:
@@ -101,16 +103,16 @@ agents:
             value: deepseek/deepseek-v4-pro-0813
           HOME:
             type: plain
-            value: /paperclip
+            value: /home/paperclip
           PATH:
             type: plain
-            value: /paperclip/.asdf/shims:/paperclip/.asdf/bin:/usr/local/bin:/usr/bin:/bin
+            value: /opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin
           AOC_COMPANY_PACKAGE_DIR:
             type: plain
-            value: /paperclip/company-packages/pcc-aoc-solver-scala
+            value: /opt/aoc-company
           AOC_REPO_DIR:
             type: plain
-            value: /paperclip/workspaces/scala3-aoc
+            value: .
           AOC_CYCLE_STARTED_AT:
             type: plain
             value: SET_AT_DEPLOYMENT
@@ -132,6 +134,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
+        command: /usr/local/bin/aoc-opencode
         model: deepseek/deepseek-v4-flash-0731
         env:
           PAPERCLIP_OPENCODE_PROVIDERS:
@@ -142,16 +145,16 @@ agents:
             value: deepseek/deepseek-v4-flash-0731
           HOME:
             type: plain
-            value: /paperclip
+            value: /home/paperclip
           PATH:
             type: plain
-            value: /paperclip/.asdf/shims:/paperclip/.asdf/bin:/usr/local/bin:/usr/bin:/bin
+            value: /opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin
           AOC_COMPANY_PACKAGE_DIR:
             type: plain
-            value: /paperclip/company-packages/pcc-aoc-solver-scala
+            value: /opt/aoc-company
           AOC_REPO_DIR:
             type: plain
-            value: /paperclip/workspaces/scala3-aoc
+            value: .
           AOC_CYCLE_STARTED_AT:
             type: plain
             value: SET_AT_DEPLOYMENT
@@ -173,6 +176,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
+        command: /usr/local/bin/aoc-opencode
         model: deepseek/deepseek-v4-flash-0731
         env:
           PAPERCLIP_OPENCODE_PROVIDERS:
@@ -183,16 +187,16 @@ agents:
             value: deepseek/deepseek-v4-flash-0731
           HOME:
             type: plain
-            value: /paperclip
+            value: /home/paperclip
           PATH:
             type: plain
-            value: /paperclip/.asdf/shims:/paperclip/.asdf/bin:/usr/local/bin:/usr/bin:/bin
+            value: /opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin
           AOC_COMPANY_PACKAGE_DIR:
             type: plain
-            value: /paperclip/company-packages/pcc-aoc-solver-scala
+            value: /opt/aoc-company
           AOC_REPO_DIR:
             type: plain
-            value: /paperclip/workspaces/scala3-aoc
+            value: .
           AOC_CYCLE_STARTED_AT:
             type: plain
             value: SET_AT_DEPLOYMENT
@@ -224,7 +228,7 @@ agents:
       runner: legacy
       config:
         model: deepseek/deepseek-v4-flash-0731
-        command: /paperclip/company-packages/pcc-aoc-solver-scala/skills/aoc-watchdog/scripts/aoc_watchdog_runner.py
+        command: /usr/local/bin/aoc-watchdog
         env:
           PAPERCLIP_OPENCODE_PROVIDERS:
             type: plain
@@ -237,10 +241,10 @@ agents:
             value: SET_AT_DEPLOYMENT
           HOME:
             type: plain
-            value: /paperclip
+            value: /home/paperclip
           PATH:
             type: plain
-            value: /paperclip/.asdf/shims:/paperclip/.asdf/bin:/usr/local/bin:/usr/bin:/bin
+            value: /opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin
         timeoutSec: 120
     inputs:
       env:
@@ -252,6 +256,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
+        command: /usr/local/bin/aoc-opencode
         model: deepseek/deepseek-v4-flash-0731
         env:
           PAPERCLIP_OPENCODE_PROVIDERS:
@@ -262,10 +267,10 @@ agents:
             value: deepseek/deepseek-v4-flash-0731
           HOME:
             type: plain
-            value: /paperclip
+            value: /home/paperclip
           PATH:
             type: plain
-            value: /paperclip/.asdf/shims:/paperclip/.asdf/bin:/usr/local/bin:/usr/bin:/bin
+            value: /opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin
     inputs:
       env:
         OPENROUTER_API_KEY:
