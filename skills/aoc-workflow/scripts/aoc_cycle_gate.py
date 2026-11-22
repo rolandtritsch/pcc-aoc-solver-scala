@@ -20,7 +20,44 @@ STAGES = {
 SEASON_PARTS = {(year, day, part) for year in range(2015, 2026)
                 for day in range(1, (12 if year == 2025 else 25) + 1)
                 for part in (1, 2)}
+SEASON_FINAL = max(SEASON_PARTS)
 OPEN = {"backlog", "todo", "in_progress", "in_review", "blocked"}
+
+
+def days_in_season(year):
+    return 12 if year == 2025 else 25
+
+
+def next_part(last):
+    """Pure, deterministic successor of a (year, day, part) triple. The
+    caller is expected to check SEASON_FINAL separately; this raises rather
+    than inventing 2026 work if it is called on it anyway."""
+    year, day, part = last
+    if last not in SEASON_PARTS:
+        raise ValueError("last completed part is outside the supported calendar")
+    if part == 1:
+        return (year, day, 2)
+    if day < days_in_season(year):
+        return (year, day + 1, 1)
+    if year < 2025:
+        return (year + 1, 1, 1)
+    raise ValueError("no part follows the final season part")
+
+
+def read_last_part(repo_dir):
+    """Read scala3-aoc's LAST.md: the fact of the last completed part,
+    recorded by the Solution Reviewer. Missing/malformed evidence fails
+    closed rather than guessing a starting point."""
+    path = Path(repo_dir) / "LAST.md"
+    text = path.read_text()
+    match = re.search(r"```aoc-last\s*(\{.*?\})\s*```", text, re.S)
+    if not match:
+        raise ValueError("LAST.md is missing its aoc-last block")
+    value = json.loads(match.group(1))
+    last = (value.get("year"), value.get("day"), value.get("part"))
+    if last not in SEASON_PARTS:
+        raise ValueError("LAST.md records a part outside the supported calendar")
+    return last
 
 
 def timestamp(value):
@@ -55,7 +92,7 @@ def review_result(issue, comments):
     return "unknown"
 
 
-def evaluate(issues, agents, since, comments, live_runs, issue_detail=lambda row: row):
+def evaluate(issues, agents, since, comments, live_runs, last_part, issue_detail=lambda row: row):
     start = timestamp(since)
     names = {a["id"]: a["name"] for a in agents}
     groups = {}
@@ -75,7 +112,6 @@ def evaluate(issues, agents, since, comments, live_runs, issue_detail=lambda row
     if unfinished:
         return {"mode": "wait", "issues": unfinished,
                 "reason": "current cycle has unfinished stage tasks"}
-    accepted_parts = set()
     for selected in sorted(groups):
         entries = groups[selected]
         if all(i["status"] == "cancelled" for _, i in entries):
@@ -93,13 +129,10 @@ def evaluate(issues, agents, since, comments, live_runs, issue_detail=lambda row
         if result != "accepted":
             return {"mode": "repair" if result == "repair" else "wait", "part": selected,
                     "issues": [latest["identifier"]], "reason": "review has not cleared advancement"}
-        if selected in SEASON_PARTS:
-            accepted_parts.add(selected)
-    if accepted_parts == SEASON_PARTS:
-        return {"mode": "complete", "reason": "All 524 parts across 2015–2025 have accepted completed reviews; archive finished"}
-    next_part = min(SEASON_PARTS - accepted_parts)
-    return {"mode": "ready", "nextPart": list(next_part),
-            "reason": "all current-cycle parts have successful completed reviews"}
+    if last_part == SEASON_FINAL:
+        return {"mode": "complete", "reason": "LAST.md records the final season part accepted; archive finished"}
+    return {"mode": "ready", "nextPart": list(next_part(last_part)),
+            "reason": "LAST.md records the last accepted part with no unresolved current-cycle work"}
 
 
 def main():
@@ -113,6 +146,7 @@ def main():
         token = os.environ["AOC_PAPERCLIP_API_KEY"]
         since = os.environ["AOC_CYCLE_STARTED_AT"]
         timestamp(since)
+        last_part = read_last_part(os.environ["AOC_REPO_DIR"])
         deadline = time.monotonic() + 20
 
         class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -148,6 +182,7 @@ def main():
         result = evaluate(issues, agents, since,
                           lambda id: get("/api/issues/" + id + "/comments"),
                           get(prefix + "/live-runs?minCount=0"),
+                          last_part,
                           lambda row: get("/api/issues/" + row["id"], require_list=False))
         print(json.dumps(result))
         return 0 if result["mode"] == "ready" else 1

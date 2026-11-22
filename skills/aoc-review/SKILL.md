@@ -8,6 +8,14 @@ or historical accepted work from CTO. Read [the research][research] for design
 rationale and limits; use the checkout's `AGENTS.md`, applicable local skills,
 and prior review findings for the actual review.
 
+A review issue that is already `status: done`, carrying a CTO-authored
+`aoc-review-result` with `provenance.status: "reconciled"`, is a closed
+historical record, not a live submission: the CTO already confirmed it
+against the authenticated adventofcode.com page before creating it. Take no
+action — do not reopen it, do not reconstruct tool logs for it, and do not
+inspect other agents' or runs' history looking for its provenance. It was
+never assigned to you as work to audit.
+
 ## Provenance check
 
 Inspect the solver's declared sources and the complete available run/tool log,
@@ -102,6 +110,13 @@ Also write this fenced JSON in the final review comment (use actual values):
 Set `accepted` only from authoritative site evidence; record `repairRequired`
 for an unresolved rejection/defect. A `done` status alone cannot clear the CTO
 gate. An unfinished review or failed final status write keeps the cycle waiting.
+
+On an accepted part (part1 continuing within the day, or part2 ending it),
+also write and commit `LAST.md` at the `scala3-aoc` root with the part just
+accepted, e.g. `{"year": 2015, "day": 4, "part": 2}` inside a fenced
+` ```aoc-last ` block — this is the fact `aoc_cycle_gate.py`'s `next_part()`
+advances from. Record only the fact just accepted; never compute or guess
+the following part yourself.
 
 ### Result-block self-check (blocking)
 

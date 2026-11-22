@@ -13,11 +13,16 @@ Day12 in 2025) follows the authenticated site's completion interaction.
 
 The CTO checks once daily at 06:00 UTC through the daily-selection routine
 (`0 6 * * *`), an hour after AoC's midnight-EST puzzle release, with interval
-heartbeats disabled. When the gate is clear, it checks whether the earliest
-unfinished part already has a passing, real-input-verified solution in the
-repository (`aoc_existing_solution.py`); if so it records that review
-directly and waits for the next cycle, rather than re-running a pipeline for
-work that is already done. Otherwise it authorizes at most one day, both
+heartbeats disabled. The next part comes from `scala3-aoc`'s `LAST.md` — the
+fact of the last completed part, recorded by the Solution Reviewer whenever
+it accepts a part — via the gate's deterministic `next_part()`, not from
+replaying issue history. Before authorizing it, the launcher checks the
+authenticated adventofcode.com page for that day (`aoc_site_status.py`); if
+the site already shows it accepted, it records that review directly
+(created `done`, never waking the Solution Reviewer), advances `LAST.md`,
+and repeats for the new candidate until the site shows one not yet
+accepted — catching up an entire backlog in one occurrence rather than one
+manual trigger per day. Otherwise it authorizes at most one day, both
 parts sequentially, or the current day's repair. Manual board triggers can
 explicitly request a check. No specialist wakes the CTO.
 CTO routine occurrences are outside puzzle stages.
@@ -96,18 +101,20 @@ share `scripts/aoc_review_contract.py`. A matching result looks like:
 {"reviewIssueId":"actual UUID","year":2015,"day":1,"part":1,"solutionCommit":"actual full hash","accepted":true,"repairRequired":false,"provenance":{"status":"clear","sources":["official statement/input"],"solverRuns":[{"runId":"actual UUID","logBytes":12345,"toolCalls":12,"complete":true}]}}
 ```
 
-All 524 accepted completed reviews with no open specialist work yield
-`complete`. A completed year alone does not finish the company. Old cycle
-tasks are context only; never reset history to make current work look complete.
+`LAST.md` recording the final season part (2025 Day12 part2), with no open
+specialist work, yields `complete`. A completed year alone does not finish
+the company. Old cycle tasks are context only; never reset history to make
+current work look complete.
 
 After the gate clears, synchronize main with origin: fetch, fast-forward pull,
 push outgoing commits, prove a clean tree and HEAD/tracking/live-remote
 equality. Dirty/diverged work and auth failures block selection. Never discard
-another agent's files or force-push. Current year-project runner and executed
-tests select the earliest unfinished computational part. Historical tickets,
-filenames, site acceptance and stored answers do not substitute for code
-verification. Preserve site acceptances and reconcile them read-only rather
-than submitting an accepted answer again. Finale acceptance uses site evidence.
+another agent's files or force-push. `LAST.md` plus `next_part()` select the
+earliest unfinished computational part; a part the site already shows
+accepted is reconciled directly rather than re-solved. Historical tickets,
+filenames and stored answers do not substitute for code verification.
+Preserve site acceptances and reconcile them read-only rather than
+submitting an accepted answer again. Finale acceptance uses site evidence.
 
 ## Publication and handoffs
 

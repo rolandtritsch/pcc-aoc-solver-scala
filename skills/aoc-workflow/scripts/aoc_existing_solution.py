@@ -1,36 +1,26 @@
 #!/usr/bin/env python3
-"""Detect whether scala3-aoc already has a verified, passing solution for a day/part."""
+"""Detect whether scala3-aoc already has a committed solution for a day/part.
+
+A committed source/test pair is trusted without re-running sbt: the Solver's
+publish helper (aoc-solve-scala/scripts/aoc_solver_publish.py publish) never
+lets a commit/push happen unless its tests already passed, so a committed
+real-input test case is itself the evidence. Re-verifying with sbt at
+reconciliation time would be redundant JVM/compile cost for a fact already
+established at commit time.
+"""
 import argparse
 from pathlib import Path
 import re
 import subprocess
 import sys
-import tempfile
-
-
-class CheckError(RuntimeError):
-    pass
-
-
-def command(repo, args, timeout=600):
-    # No shell/pipeline: a failed sbt process cannot be hidden by tail.
-    with tempfile.NamedTemporaryFile(mode="w+", prefix="aoc-existing-",
-                                     suffix=".log", delete=False) as log:
-        try:
-            result = subprocess.run(args, cwd=repo, stdout=log,
-                                    stderr=subprocess.STDOUT, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            raise CheckError(f"{args[0]} timed out; private diagnostics: {log.name}") from None
-        log.seek(0)
-        output = log.read()
-    if result.returncode:
-        raise CheckError(f"{args[0]} exited {result.returncode}; private diagnostics: {log.name}")
-    Path(log.name).unlink()
-    return re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", output)
 
 
 def git(repo, *args):
-    return command(repo, ["git", *args], 60).rstrip("\n")
+    result = subprocess.run(["git", *args], cwd=repo, capture_output=True,
+                            text=True, timeout=60)
+    if result.returncode:
+        raise RuntimeError(f"git {args[0]} exited {result.returncode}: {result.stderr}")
+    return result.stdout.rstrip("\n")
 
 
 def source_file(repo, year, day):
@@ -48,29 +38,16 @@ def has_real_input_case(test_text, day, part):
     return bool(pattern.search(test_text))
 
 
-def tests_passed(output):
-    match = re.search(r"Total\s+(\d+),\s*Failed\s+(\d+),\s*Errors\s+(\d+)", output)
-    if not match:
-        return False
-    total, failed, errors = (int(value) for value in match.groups())
-    return total > 0 and failed == 0 and errors == 0
-
-
-def find_existing_commit(repo, year, day, part, run=command):
-    """Return the full commit sha that last touched this day's files if a passing,
-    real-input-verified solution already exists for the given part; else None."""
+def find_existing_commit(repo, year, day, part):
+    """Return the full commit sha that last touched this day's files if a
+    committed, real-input-test-named solution already exists for the given
+    part; else None."""
     repo = Path(repo)
     src = source_file(repo, year, day)
     test = test_file(repo, year, day)
     if not src.is_file() or not test.is_file():
         return None
     if not has_real_input_case(test.read_text(), day, part):
-        return None
-    try:
-        output = run(repo / str(year), ["sbt", "--batch", f"testOnly *Day{day:02d}Test*"])
-    except CheckError:
-        return None
-    if not tests_passed(output):
         return None
     commit = git(repo, "log", "-1", "--format=%H", "--",
                 str(src.relative_to(repo)), str(test.relative_to(repo)))

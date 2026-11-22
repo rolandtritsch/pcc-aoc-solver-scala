@@ -20,6 +20,16 @@ def result(mode, code, **extra):
     return check
 
 
+def sequence(*steps):
+    """steps: (mode, code, extra-dict) tuples consumed one per check() call."""
+    it = iter(steps)
+    def check():
+        mode, code, extra = next(it)
+        print(json.dumps({"mode": mode, **extra}))
+        return code
+    return check
+
+
 class WrapperTest(unittest.TestCase):
     def setUp(self):
         self.finisher = patch.object(wrapper, "finish_occurrence").start()
@@ -83,46 +93,93 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual(wrapper.run(args, result("ready", 0), launch), 0)
         launch.assert_called_once_with("/usr/local/bin/opencode", ["/usr/local/bin/opencode", *args])
 
-    def test_reconciled_part_completes_without_launching_provider(self):
-        launch = Mock()
-        reconcile_existing = Mock(return_value="review-issue-1")
-        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
-            code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 4, 1]), launch,
-                               reconcile_existing=reconcile_existing)
-        self.assertEqual(code, 0)
-        launch.assert_not_called()
-        reconcile_existing.assert_called_once_with([2015, 4, 1], "/repo")
-        self.finisher.assert_called_once()
-        args, _ = self.finisher.call_args
-        self.assertIn("review-issue-1", args[1])
-
-    def test_ready_without_existing_solution_launches_provider(self):
-        launch = Mock()
-        reconcile_existing = Mock(return_value=None)
-        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
-            code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 4, 1]), launch,
-                               reconcile_existing=reconcile_existing)
-        self.assertEqual(code, 0)
-        launch.assert_called_once()
-        self.finisher.assert_not_called()
-
-    def test_reconciliation_check_failure_fails_closed(self):
-        launch = Mock()
-        reconcile_existing = Mock(side_effect=RuntimeError("api down"))
-        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
-            code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 4, 1]), launch,
-                               reconcile_existing=reconcile_existing)
-        self.assertEqual(code, 2)
-        launch.assert_not_called()
-
     def test_ready_without_repo_dir_skips_reconciliation(self):
         launch = Mock()
+        site_check = Mock()
         reconcile_existing = Mock()
         with patch.dict(os.environ, {}, clear=True):
             code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 4, 1]), launch,
-                               reconcile_existing=reconcile_existing)
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
         self.assertEqual(code, 0)
+        site_check.assert_not_called()
         reconcile_existing.assert_not_called()
+        launch.assert_called_once()
+
+    def test_not_yet_complete_on_site_launches_normal_pipeline(self):
+        launch = Mock()
+        site_check = Mock(return_value=False)
+        reconcile_existing = Mock()
+        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
+            code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+        self.assertEqual(code, 0)
+        site_check.assert_called_once_with([2015, 5, 1])
+        reconcile_existing.assert_not_called()
+        launch.assert_called_once()
+
+    def test_catches_up_several_already_solved_parts_in_one_pass(self):
+        launch = Mock()
+        check = sequence(
+            ("ready", 0, {"nextPart": [2015, 5, 1]}),
+            ("ready", 0, {"nextPart": [2015, 5, 2]}),
+            ("ready", 0, {"nextPart": [2015, 6, 1]}),
+        )
+        site_check = Mock(side_effect=[True, True, False])
+        reconcile_existing = Mock(return_value="review-issue")
+        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
+            code = wrapper.run(["run"], check, launch,
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+        self.assertEqual(code, 0)
+        self.assertEqual([c.args[0] for c in site_check.call_args_list],
+                         [[2015, 5, 1], [2015, 5, 2], [2015, 6, 1]])
+        self.assertEqual([c.args for c in reconcile_existing.call_args_list],
+                         [([2015, 5, 1], "/repo"), ([2015, 5, 2], "/repo")])
+        launch.assert_called_once()
+        self.finisher.assert_not_called()
+
+    def test_catch_up_that_reaches_season_completion_finishes_instead_of_launching(self):
+        launch = Mock()
+        check = sequence(
+            ("ready", 0, {"nextPart": [2025, 12, 2]}),
+            ("complete", 1, {}),
+        )
+        site_check = Mock(return_value=True)
+        reconcile_existing = Mock(return_value="review-issue")
+        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
+            code = wrapper.run(["run"], check, launch,
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+        self.assertEqual(code, 0)
+        launch.assert_not_called()
+        self.finisher.assert_called_once_with({"mode": "complete"})
+
+    def test_site_status_check_failure_fails_closed(self):
+        launch = Mock()
+        site_check = Mock(side_effect=RuntimeError("network down"))
+        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
+            code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
+                               site_complete_check=site_check)
+        self.assertEqual(code, 2)
+        launch.assert_not_called()
+
+    def test_reconciliation_failure_fails_closed(self):
+        launch = Mock()
+        site_check = Mock(return_value=True)
+        reconcile_existing = Mock(side_effect=ValueError("no local commit"))
+        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
+            code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+        self.assertEqual(code, 2)
+        launch.assert_not_called()
+
+    def test_reconciliation_loop_is_capped(self):
+        launch = Mock()
+        site_check = Mock(return_value=True)
+        reconcile_existing = Mock(return_value="review-issue")
+        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
+            code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+        self.assertEqual(code, 0)
+        self.assertEqual(reconcile_existing.call_count, wrapper.MAX_RECONCILE_ITERATIONS)
         launch.assert_called_once()
 
     def test_completed_rejection_can_launch_same_part_repair(self):
@@ -185,41 +242,76 @@ class ReconcileTest(unittest.TestCase):
         opener.open.side_effect = open_request
         return opener, seen
 
-    def test_no_existing_solution_skips_api_calls(self):
+    def test_no_local_commit_fails_closed(self):
         find_commit = Mock(return_value=None)
-        result = wrapper.reconcile([2015, 4, 1], "/repo", find_commit=find_commit)
-        self.assertIsNone(result)
+        write_last = Mock()
+        with self.assertRaises(ValueError):
+            wrapper.reconcile([2015, 4, 1], "/repo", find_commit=find_commit, write_last=write_last)
         find_commit.assert_called_once_with("/repo", 2015, 4, 1)
+        write_last.assert_not_called()
 
-    def test_existing_solution_creates_and_completes_review(self):
+    def test_existing_solution_creates_already_done_review_and_writes_last(self):
         responses = [
             [{"id": "reviewer-id", "name": "Solution Reviewer"}, {"id": "cto-id", "name": "CTO"}],
-            {"id": "issue-1", "status": "todo"},
+            {"id": "issue-1", "status": "done"},
             {"status": "done"},
         ]
         opener, seen = self.opener_for(responses)
         find_commit = Mock(return_value="a" * 40)
+        write_last = Mock()
         with patch.dict(os.environ, self.env(), clear=True), \
                 patch.object(wrapper.urllib.request, "build_opener", return_value=opener):
-            issue_id = wrapper.reconcile([2015, 4, 1], "/repo", find_commit=find_commit)
+            issue_id = wrapper.reconcile([2015, 4, 1], "/repo", find_commit=find_commit, write_last=write_last)
         self.assertEqual(issue_id, "issue-1")
         self.assertEqual([r.method for r in seen], ["GET", "POST", "PATCH"])
         created = json.loads(seen[1].data)
         self.assertEqual(created["assigneeAgentId"], "reviewer-id")
+        self.assertEqual(created["status"], "done")
         self.assertEqual(created["title"], "AoC 2015 Day04 part1: review")
-        completed = json.loads(seen[2].data)
-        self.assertEqual(completed["status"], "done")
-        self.assertIn("aoc-review-result", completed["comment"])
-        self.assertIn("a" * 40, completed["comment"])
+        patched = json.loads(seen[2].data)
+        self.assertNotIn("status", patched)
+        self.assertIn("aoc-review-result", patched["comment"])
+        self.assertIn("a" * 40, patched["comment"])
+        result = json.loads(patched["comment"].split("```aoc-review-result\n")[1].split("\n```")[0])
+        self.assertEqual(result["provenance"],
+                         {"status": "reconciled", "verifiedBy": "aoc_site_status", "siteConfirmed": True})
+        write_last.assert_called_once_with("/repo", (2015, 4, 1))
 
     def test_missing_reviewer_agent_fails_closed(self):
         responses = [[{"id": "cto-id", "name": "CTO"}]]
         opener, seen = self.opener_for(responses)
         find_commit = Mock(return_value="a" * 40)
+        write_last = Mock()
         with patch.dict(os.environ, self.env(), clear=True), \
                 patch.object(wrapper.urllib.request, "build_opener", return_value=opener):
             with self.assertRaises(ValueError):
-                wrapper.reconcile([2015, 4, 1], "/repo", find_commit=find_commit)
+                wrapper.reconcile([2015, 4, 1], "/repo", find_commit=find_commit, write_last=write_last)
+        write_last.assert_not_called()
+
+
+class WriteLastPartTest(unittest.TestCase):
+    def test_writes_commits_and_pushes(self):
+        import tempfile
+        calls = []
+        def fake_git(repo, *args):
+            calls.append((repo, args))
+            return ""
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(wrapper, "git", fake_git):
+            wrapper.write_last_part(directory, (2015, 4, 2))
+            content = Path(directory, "LAST.md").read_text()
+        self.assertIn('"year": 2015', content)
+        self.assertIn('"day": 4', content)
+        self.assertIn('"part": 2', content)
+        self.assertEqual([args[0] for _, args in calls], ["add", "commit", "push"])
+
+
+class SiteCompleteTest(unittest.TestCase):
+    def test_delegates_to_is_part_complete_with_session(self):
+        with patch.object(wrapper, "is_part_complete", return_value=True) as is_complete, \
+                patch.dict(os.environ, {"AOC_SESSION": "token"}, clear=True):
+            self.assertTrue(wrapper.site_complete([2015, 4, 1]))
+        is_complete.assert_called_once_with(2015, 4, 1, "token")
 
 
 if __name__ == "__main__":

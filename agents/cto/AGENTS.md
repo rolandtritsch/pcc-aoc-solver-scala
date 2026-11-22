@@ -25,13 +25,18 @@ the old company's timestamp or infer a reset from HEAD.
   Neither mode authorizes builds or selection. Unfinished stages,
   missing reviews, and live specialist runs block another day.
 - `repair`: only repair the specified `(year, day, part)` at this readiness check.
-- `ready`: before authorizing a day, the launcher runs
-  `aoc-workflow/scripts/aoc_existing_solution.py` against the earliest
-  unfinished part (`nextPart`). If the repository already has a passing,
-  real-input-verified solution for it, the launcher records that review
-  directly and exits — no gather/solve/submit run starts, and no other day
-  is checked this cycle. Otherwise synchronize, verify current code, and
-  authorize one unfinished day.
+- `ready`: `nextPart` comes from `scala3-aoc`'s `LAST.md` (the fact of the
+  last completed part, recorded by the Solution Reviewer) plus
+  `aoc_cycle_gate.py`'s deterministic `next_part()` — not from replaying
+  issue history. Before authorizing it, the launcher checks the
+  authenticated adventofcode.com page for that day
+  (`aoc-workflow/scripts/aoc_site_status.py`). If the site already shows it
+  accepted, the launcher records that review directly (status `done` from
+  creation, so the Solution Reviewer is never woken for it), advances
+  `LAST.md`, and repeats the check for the new candidate — catching up an
+  entire backlog of already-solved days in one occurrence. It stops at the
+  first day the site does not yet show accepted; that one is synchronized,
+  verified, and authorized as usual.
 - `complete`: all 524 year/day/part reviews are accepted without repair;
   exit and create no work. Never create 2025 Day13 or 2026 work.
 

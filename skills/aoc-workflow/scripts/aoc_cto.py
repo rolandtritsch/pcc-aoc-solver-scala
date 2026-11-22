@@ -10,7 +10,10 @@ import sys
 import urllib.request
 
 from aoc_cycle_gate import main as check_cycle
-from aoc_existing_solution import find_existing_commit
+from aoc_existing_solution import find_existing_commit, git
+from aoc_site_status import is_part_complete
+
+MAX_RECONCILE_ITERATIONS = 524  # one per season part; a defensive cap, not an expectation
 
 
 def _api(request_timeout=10):
@@ -53,15 +56,33 @@ def finish_occurrence(result, note="No puzzle work selected; this check is compl
         raise ValueError("CTO occurrence disposition was not persisted")
 
 
-def reconcile(next_part, repo_dir, find_commit=find_existing_commit):
-    """If the repository already has a verified, passing solution for the next
-    unfinished part, record its review directly instead of re-running
-    gather/solve/submit for work that is already done. Returns the created
-    review issue id, or None if no existing solution was found."""
+def write_last_part(repo_dir, part):
+    """Record the fact of the last completed part in scala3-aoc's LAST.md and
+    push it. Deliberately a fact, not a decision: aoc_cycle_gate.py's
+    next_part() is the one place that computes what comes after it."""
+    year, day, number = part
+    path = str(repo_dir) + "/LAST.md"
+    with open(path, "w") as handle:
+        handle.write("```aoc-last\n" + json.dumps({"year": year, "day": day, "part": number}) + "\n```\n")
+    git(repo_dir, "add", "LAST.md")
+    git(repo_dir, "commit", "-m", f"Reconcile AoC {year} Day{day:02d} part{number}")
+    git(repo_dir, "push")
+
+
+def site_complete(next_part):
+    year, day, part = next_part
+    return is_part_complete(year, day, part, os.environ["AOC_SESSION"])
+
+
+def reconcile(next_part, repo_dir, find_commit=find_existing_commit, write_last=write_last_part):
+    """The site already confirms this part is accepted: record its review
+    directly instead of re-running gather/solve/submit for work that is
+    already done. Returns the created review issue id, or raises if the
+    local checkout has no matching commit to cite as evidence."""
     year, day, part = next_part
     commit = find_commit(repo_dir, year, day, part)
     if not commit:
-        return None
+        raise ValueError("site confirms this part is accepted but no local commit was found")
     request = _api()
     company = os.environ["PAPERCLIP_COMPANY_ID"]
     agents = request("GET", "/api/companies/" + company + "/agents")
@@ -72,24 +93,29 @@ def reconcile(next_part, repo_dir, find_commit=find_existing_commit):
     description = ("```aoc-solver-publication\n" +
                    json.dumps({"year": year, "day": day, "part": part, "commit": commit}) +
                    "\n```")
+    # Created already `done`: Paperclip never wakes an assignee for a task
+    # created pre-closed, unlike create-as-todo-then-patch-to-done, which
+    # would wake the Solution Reviewer for real before the patch landed.
     issue = request("POST", "/api/issues", {
         "companyId": company, "title": title, "description": description,
-        "assigneeAgentId": reviewer, "status": "todo", "priority": "medium",
+        "assigneeAgentId": reviewer, "status": "done", "priority": "medium",
     })
     result = {"reviewIssueId": issue["id"], "year": year, "day": day, "part": part,
               "solutionCommit": commit, "accepted": True, "repairRequired": False,
-              "provenance": {"status": "unknown"}}
-    comment = ("Reconciled: an existing passing solution for this part was already in "
-              "the repository (commit " + commit + "); no new gather/solve/submit run "
-              "was started.\n\n```aoc-review-result\n" + json.dumps(result) + "\n```")
-    updated = request("PATCH", "/api/issues/" + issue["id"], {"status": "done", "comment": comment})
+              "provenance": {"status": "reconciled", "verifiedBy": "aoc_site_status",
+                              "siteConfirmed": True}}
+    comment = ("Reconciled: an authenticated adventofcode.com check confirms this part "
+              "is already accepted (commit " + commit + "); no new gather/solve/submit "
+              "run was started.\n\n```aoc-review-result\n" + json.dumps(result) + "\n```")
+    updated = request("PATCH", "/api/issues/" + issue["id"], {"comment": comment})
     if updated.get("status") != "done":
         raise ValueError("reconciliation review disposition was not persisted")
+    write_last(repo_dir, (year, day, part))
     return issue["id"]
 
 
 def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
-       finish=None, reconcile_existing=reconcile):
+       finish=None, reconcile_existing=reconcile, site_complete_check=site_complete):
     binary = os.environ.get("AOC_OPENCODE_BINARY", "/usr/local/bin/opencode")
     # Paperclip's configuration probe has no run-scoped API credentials.
     # Permit only its fixed, tool-free hello prompt; real runs still use the gate.
@@ -103,35 +129,36 @@ def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
             return 2
         return probe([binary, *args], input=prompt, text=True, check=False).returncode
     if args and args[0] == "run":
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            code = check()
-        try:
-            result = json.loads(output.getvalue())
-        except (ValueError, TypeError):
-            result = {"mode": "unknown", "reason": "invalid gate result"}
-            code = 2
-        mode = result.get("mode")
-        if mode == "ready" and code == 0 and result.get("nextPart"):
-            year, day, part = result["nextPart"]
-            repo_dir = os.environ.get("AOC_REPO_DIR")
+        def recheck():
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                exit_code = check()
             try:
-                reconciled = reconcile_existing(result["nextPart"], repo_dir) if repo_dir else None
+                return json.loads(output.getvalue()), exit_code
+            except (ValueError, TypeError):
+                return {"mode": "unknown", "reason": "invalid gate result"}, 2
+
+        result, code = recheck()
+        mode = result.get("mode")
+        repo_dir = os.environ.get("AOC_REPO_DIR")
+        iterations = 0
+        while (mode == "ready" and code == 0 and result.get("nextPart")
+               and repo_dir and iterations < MAX_RECONCILE_ITERATIONS):
+            iterations += 1
+            try:
+                complete = site_complete_check(result["nextPart"])
             except Exception as error:
-                print("CTO reconciliation check failed: " + type(error).__name__)
+                print("CTO site-status check failed: " + type(error).__name__)
                 return 2
-            if reconciled:
-                note = (f"Reconciled AoC {year} Day{day:02d} part{part} from an existing "
-                        f"repository solution (review {reconciled}); waiting for the next "
-                        "daily-selection cycle to find the next unfinished day.")
-                print(json.dumps({"type": "text", "part": {"type": "text",
-                                 "text": "CTO preflight: " + note}}))
-                try:
-                    (finish or finish_occurrence)(result, note)
-                except Exception as error:
-                    print("CTO disposition failed: " + type(error).__name__)
-                    return 2
-                return 0
+            if not complete:
+                break
+            try:
+                reconcile_existing(result["nextPart"], repo_dir)
+            except Exception as error:
+                print("CTO reconciliation failed: " + type(error).__name__)
+                return 2
+            result, code = recheck()
+            mode = result.get("mode")
         if mode not in ("ready", "repair") or code not in (0, 1):
             print(json.dumps({"type": "text", "part": {"type": "text",
                              "text": "CTO preflight: " + json.dumps(result)}}))

@@ -49,6 +49,18 @@ class VerifyTest(unittest.TestCase):
         for body in ['no block','```aoc-review-result\n{bad\n```',good()+good()]:
             self.assertFalse(validator.verify(ISSUE,body)[0])
 
+    def test_reconciled_provenance_clears_advancement(self):
+        self.assertTrue(validator.verify(ISSUE, good(
+            provenance={"status": "reconciled", "verifiedBy": "aoc_site_status", "siteConfirmed": True}))[0])
+
+    def test_reconciled_provenance_requires_site_confirmation(self):
+        for provenance in (
+                {"status": "reconciled", "verifiedBy": "aoc_site_status", "siteConfirmed": False},
+                {"status": "reconciled", "verifiedBy": "something_else", "siteConfirmed": True},
+                {"status": "reconciled"}):
+            with self.subTest(provenance=provenance):
+                self.assertFalse(validator.verify(ISSUE, good(provenance=provenance))[0])
+
     def test_finale_requires_reason_and_correct_calendar(self):
         issue=dict(ISSUE,title='AoC 2025 Day12 part2: review',description='```aoc-review-context\n'+json.dumps({'kind':'finale','solutionCommit':COMMIT})+'\n```')
         body=good(year=2025,day=12,provenance={'status':'not_applicable','reason':'Authenticated completion interaction; no solver'})

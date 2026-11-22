@@ -23,6 +23,15 @@ Specialists never start another day or wake the CTO. The CTO exits if any
 current day stage or review is unfinished. Verified existing site acceptances
 are preserved; current code still requires executed tests and runner evidence.
 
+The next part comes from `scala3-aoc`'s `LAST.md` — a one-line fact, written
+by the reviewer on every accepted part — plus a deterministic successor
+function, not from replaying Paperclip issue history (which a company
+reimport has none of). Before authorizing it, the CTO checks the
+authenticated adventofcode.com page for that day; if already accepted there,
+it records the review directly (created already `done`, so the Solution
+Reviewer is never woken for it) and repeats for the next part, catching up
+an entire backlog in a single occurrence.
+
 | Agent | Responsibility |
 | --- | --- |
 | CTO | Selects one year/day or repair when the cycle gate is clear |
@@ -122,7 +131,9 @@ solution checkout exists, has the correct origin and clean main branch, and
 contains `0000/` before activating the routine. Bind every agent to the dedicated
 environment; importing the package alone does not create or assign it.
 
-Bind vault-backed `OPENROUTER_API_KEY`, `AOC_SESSION` (gatherer/submitter), and
+Bind vault-backed `OPENROUTER_API_KEY`, `AOC_SESSION` (gatherer/submitter/CTO — the
+CTO's readiness check uses it to confirm already-solved days against the live
+site before reconciling them), and
 GitHub authentication for agents publishing solutions. Never copy credentials
 into the package. Existing Pro/Flash model pins and OpenRouter mappings are
 inherited configuration, not a fresh model evaluation. Read before changing

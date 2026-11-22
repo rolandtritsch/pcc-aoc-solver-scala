@@ -63,8 +63,12 @@ def validate(issue, result):
         if type(result.get(key)) is not bool:
             raise ValueError(f"{key} must be true/false")
     provenance = result.get("provenance")
-    if not isinstance(provenance, dict) or provenance.get("status") not in ("clear", "unknown", "contaminated", "not_applicable"):
+    if not isinstance(provenance, dict) or provenance.get("status") not in (
+            "clear", "unknown", "contaminated", "not_applicable", "reconciled"):
         raise ValueError("explicit provenance status is required")
+    if provenance["status"] == "reconciled":
+        if provenance.get("verifiedBy") != "aoc_site_status" or provenance.get("siteConfirmed") is not True:
+            raise ValueError("reconciliation requires a confirmed site-status verification")
     if provenance["status"] == "not_applicable":
         year, day, part = selected
         if (part != 2 or day != (12 if year == 2025 else 25)
@@ -81,6 +85,7 @@ def validate(issue, result):
                     or type(log.get("logBytes")) is not int or log["logBytes"] <= 0
                     or type(log.get("toolCalls")) is not int or log["toolCalls"] <= 0):
                 raise ValueError("provenance clearance requires complete solver log coverage")
-    if result["accepted"] and not result["repairRequired"] and provenance["status"] not in ("clear", "not_applicable"):
+    if result["accepted"] and not result["repairRequired"] and provenance["status"] not in (
+            "clear", "not_applicable", "reconciled"):
         raise ValueError("provenance has not cleared advancement")
     return result

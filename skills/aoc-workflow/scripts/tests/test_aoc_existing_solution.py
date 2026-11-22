@@ -3,15 +3,11 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     "existing", Path(__file__).parents[1] / "aoc_existing_solution.py")
 existing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(existing)
-
-PASSING_OUTPUT = "aoc2015.Day03Test:\n[info] Passed: Total 11, Failed 0, Errors 0, Passed 11\n"
-FAILING_OUTPUT = "aoc2015.Day03Test:\n[info] Passed: Total 11, Failed 1, Errors 0, Passed 10\n"
 
 
 class ExistingSolutionTest(unittest.TestCase):
@@ -46,47 +42,34 @@ class ExistingSolutionTest(unittest.TestCase):
             cases.append('  test("Day03 - part2 - real input"):\n    assertEquals(1, 1)')
         test.write_text("class Day03Test:\n" + "\n".join(cases) + "\n")
 
-    def fake_run(self, output):
-        def run(repo, args, timeout=600):
-            return output
-        return run
-
-    def test_passing_real_input_test_is_solved(self):
-        commit = existing.find_existing_commit(
-            self.repo, self.year, self.day, 1, run=self.fake_run(PASSING_OUTPUT))
+    def test_committed_real_input_case_is_solved(self):
+        commit = existing.find_existing_commit(self.repo, self.year, self.day, 1)
         self.assertEqual(commit, self.commit)
-
-    def test_failing_tests_are_not_solved(self):
-        commit = existing.find_existing_commit(
-            self.repo, self.year, self.day, 1, run=self.fake_run(FAILING_OUTPUT))
-        self.assertIsNone(commit)
 
     def test_missing_source_file_is_not_solved(self):
         existing.source_file(self.repo, self.year, self.day).unlink()
-        commit = existing.find_existing_commit(
-            self.repo, self.year, self.day, 1, run=self.fake_run(PASSING_OUTPUT))
+        commit = existing.find_existing_commit(self.repo, self.year, self.day, 1)
+        self.assertIsNone(commit)
+
+    def test_missing_test_file_is_not_solved(self):
+        existing.test_file(self.repo, self.year, self.day).unlink()
+        commit = existing.find_existing_commit(self.repo, self.year, self.day, 1)
         self.assertIsNone(commit)
 
     def test_part_without_real_input_case_is_not_solved(self):
         self.write_day(part1=True, part2=False)
-        commit = existing.find_existing_commit(
-            self.repo, self.year, self.day, 2, run=self.fake_run(PASSING_OUTPUT))
+        commit = existing.find_existing_commit(self.repo, self.year, self.day, 2)
         self.assertIsNone(commit)
 
-    def test_sbt_failure_is_not_solved(self):
-        def raising(repo, args, timeout=600):
-            raise existing.CheckError("sbt crashed")
-        commit = existing.find_existing_commit(self.repo, self.year, self.day, 1, run=raising)
-        self.assertIsNone(commit)
+    def test_has_real_input_case_matches_zero_padded_day(self):
+        self.assertTrue(existing.has_real_input_case(
+            'test("Day03 - part1 - real input"):', 3, 1))
+        self.assertFalse(existing.has_real_input_case(
+            'test("Day03 - part1 - example"):', 3, 1))
 
-    def test_tests_passed_requires_executed_tests(self):
-        self.assertFalse(existing.tests_passed("no summary line here"))
-        self.assertFalse(existing.tests_passed("Total 0, Failed 0, Errors 0"))
-        self.assertTrue(existing.tests_passed("Total 11, Failed 0, Errors 0"))
-
-    def test_command_rejects_nonzero_exit(self):
-        with self.assertRaises(existing.CheckError):
-            existing.command(self.repo, ["sh", "-c", "exit 1"])
+    def test_git_rejects_nonzero_exit(self):
+        with self.assertRaises(RuntimeError):
+            existing.git(self.repo, "not-a-real-git-subcommand")
 
 
 if __name__ == "__main__":
