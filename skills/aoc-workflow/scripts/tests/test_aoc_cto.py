@@ -105,13 +105,24 @@ class WrapperTest(unittest.TestCase):
         reconcile_existing.assert_not_called()
         launch.assert_called_once()
 
+    def test_repo_sync_failure_fails_closed_before_the_gate_runs(self):
+        launch = Mock()
+        check = Mock()
+        sync = Mock(side_effect=RuntimeError("diverged"))
+        with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
+            code = wrapper.run(["run"], check, launch, sync=sync)
+        self.assertEqual(code, 2)
+        check.assert_not_called()
+        launch.assert_not_called()
+
     def test_not_yet_complete_on_site_launches_normal_pipeline(self):
         launch = Mock()
         site_check = Mock(return_value=False)
         reconcile_existing = Mock()
         with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
             code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
-                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check,
+                               sync=Mock())
         self.assertEqual(code, 0)
         site_check.assert_called_once_with([2015, 5, 1])
         reconcile_existing.assert_not_called()
@@ -128,7 +139,8 @@ class WrapperTest(unittest.TestCase):
         reconcile_existing = Mock(return_value="review-issue")
         with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
             code = wrapper.run(["run"], check, launch,
-                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check,
+                               sync=Mock())
         self.assertEqual(code, 0)
         self.assertEqual([c.args[0] for c in site_check.call_args_list],
                          [[2015, 5, 1], [2015, 5, 2], [2015, 6, 1]])
@@ -147,7 +159,8 @@ class WrapperTest(unittest.TestCase):
         reconcile_existing = Mock(return_value="review-issue")
         with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
             code = wrapper.run(["run"], check, launch,
-                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check,
+                               sync=Mock())
         self.assertEqual(code, 0)
         launch.assert_not_called()
         self.finisher.assert_called_once_with({"mode": "complete"})
@@ -157,7 +170,7 @@ class WrapperTest(unittest.TestCase):
         site_check = Mock(side_effect=RuntimeError("network down"))
         with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
             code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
-                               site_complete_check=site_check)
+                               site_complete_check=site_check, sync=Mock())
         self.assertEqual(code, 2)
         launch.assert_not_called()
 
@@ -167,7 +180,8 @@ class WrapperTest(unittest.TestCase):
         reconcile_existing = Mock(side_effect=ValueError("no local commit"))
         with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
             code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
-                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check,
+                               sync=Mock())
         self.assertEqual(code, 2)
         launch.assert_not_called()
 
@@ -177,7 +191,8 @@ class WrapperTest(unittest.TestCase):
         reconcile_existing = Mock(return_value="review-issue")
         with patch.dict(os.environ, {"AOC_REPO_DIR": "/repo"}, clear=True):
             code = wrapper.run(["run"], result("ready", 0, nextPart=[2015, 5, 1]), launch,
-                               reconcile_existing=reconcile_existing, site_complete_check=site_check)
+                               reconcile_existing=reconcile_existing, site_complete_check=site_check,
+                               sync=Mock())
         self.assertEqual(code, 0)
         self.assertEqual(reconcile_existing.call_count, wrapper.MAX_RECONCILE_ITERATIONS)
         launch.assert_called_once()
@@ -304,6 +319,20 @@ class WriteLastPartTest(unittest.TestCase):
         self.assertIn('"day": 4', content)
         self.assertIn('"part": 2', content)
         self.assertEqual([args[0] for _, args in calls], ["add", "commit", "push"])
+
+
+class SyncRepoTest(unittest.TestCase):
+    def test_fetches_then_fast_forwards_main(self):
+        calls = []
+        def fake_git(repo, *args):
+            calls.append((repo, args))
+            return ""
+        with patch.object(wrapper, "git", fake_git):
+            wrapper.sync_repo("/repo")
+        self.assertEqual(calls, [
+            ("/repo", ("fetch", "origin", "main")),
+            ("/repo", ("merge", "--ff-only", "origin/main")),
+        ])
 
 
 class SiteCompleteTest(unittest.TestCase):

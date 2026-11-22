@@ -69,6 +69,14 @@ def write_last_part(repo_dir, part):
     git(repo_dir, "push")
 
 
+def sync_repo(repo_dir):
+    """Fast-forward-only pull so the gate's LAST.md read reflects the
+    latest accepted part, not a stale staged checkout. Never discards
+    another agent's work: a diverged or dirty tree fails closed."""
+    git(repo_dir, "fetch", "origin", "main")
+    git(repo_dir, "merge", "--ff-only", "origin/main")
+
+
 def site_complete(next_part):
     year, day, part = next_part
     return is_part_complete(year, day, part, os.environ["AOC_SESSION"])
@@ -115,7 +123,8 @@ def reconcile(next_part, repo_dir, find_commit=find_existing_commit, write_last=
 
 
 def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
-       finish=None, reconcile_existing=reconcile, site_complete_check=site_complete):
+       finish=None, reconcile_existing=reconcile, site_complete_check=site_complete,
+       sync=sync_repo):
     binary = os.environ.get("AOC_OPENCODE_BINARY", "/usr/local/bin/opencode")
     # Paperclip's configuration probe has no run-scoped API credentials.
     # Permit only its fixed, tool-free hello prompt; real runs still use the gate.
@@ -129,6 +138,17 @@ def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
             return 2
         return probe([binary, *args], input=prompt, text=True, check=False).returncode
     if args and args[0] == "run":
+        repo_dir = os.environ.get("AOC_REPO_DIR")
+        if repo_dir:
+            # The gate reads LAST.md from this checkout; it must be current
+            # with origin before the gate runs, not only afterward. A
+            # fast-forward-only pull never discards another agent's work.
+            try:
+                sync(repo_dir)
+            except Exception as error:
+                print("CTO repo sync failed: " + type(error).__name__)
+                return 2
+
         def recheck():
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
@@ -140,7 +160,6 @@ def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
 
         result, code = recheck()
         mode = result.get("mode")
-        repo_dir = os.environ.get("AOC_REPO_DIR")
         iterations = 0
         while (mode == "ready" and code == 0 and result.get("nextPart")
                and repo_dir and iterations < MAX_RECONCILE_ITERATIONS):
