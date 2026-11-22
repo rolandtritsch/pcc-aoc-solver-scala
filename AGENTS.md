@@ -15,6 +15,99 @@ this same project (the one that migrated agents to the dedicated Fargate
 runtime and removed the WatchDog/ModelTester agents, commits `f1a903e` and
 `a445951`), not just the session that did the `daily-selection` latency fix.
 
+## The central open design question: where is the source of truth?
+
+Every major bug this session hit — the slow reconciliation path, the
+reimport amnesia that motivated `LAST.md`, the staged-workspace divergence
+that was never fully resolved — traces back to the same unresolved question:
+**when the system needs to know "what's done and what's next," which store
+actually gets to answer, and why?** There are (at least) four candidates in
+play right now, and this package currently gives an *implicit*, inconsistent
+answer depending on which script you're reading. A refactor should make this
+answer **explicit and composed on purpose**, not rediscover it piecemeal the
+way this session did.
+
+**The four candidate stores, and what each one actually knows:**
+
+1. **The GitHub repo (`scala3-aoc`).** Tells you whether code that *looks*
+   solved exists and is committed. Durable, versioned, survives a company
+   being archived/deleted/reimported. Does **not** tell you whether that
+   code was ever actually accepted anywhere, whether something is
+   currently in flight for that day, or whether a prior attempt was
+   rejected and is waiting on repair. A commit existing is evidence, not
+   proof.
+2. **The AoC website.** The only thing that can answer "is this *actually*
+   accepted," independent of all our own infrastructure — genuinely
+   authoritative for that one question. Does **not** tell you whether our
+   current code reproduces that answer, why something failed, or what's in
+   progress. Rate-limited and session-dependent, so it's correct as an
+   arbiter, too slow/fragile to be the primary driver of every decision.
+3. **Paperclip's own issues/tasks for the company.** The only store that
+   knows about *live workflow state* — a run currently in progress, a
+   rejected attempt waiting for repair, a blocked handoff — which neither
+   the repo nor the site can express at all. But it is scoped to a single
+   company's lifetime: archiving or reimporting the company (something this
+   package explicitly needs to support) throws all of it away. That's the
+   amnesia problem `LAST.md` was built to route around, and it's also why
+   the original gate design (replaying issue history to compute progress)
+   silently assumed "this company has been running continuously since the
+   beginning of the season," which was never actually true.
+4. **Whatever git state happens to be checked out in a run's EFS-staged
+   workspace.** This is **not a source of truth and must never be treated
+   as one** — it is a cache, and this session proved the cache is
+   unreliable: staged copies have been found empty, stale by many commits,
+   and diverged with locally-committed-but-unpushed work. The `LAST.md`
+   redesign's worst bug was implicitly trusting this cache (reading
+   `LAST.md` straight out of whatever happened to be checked out) instead
+   of treating every read of it as "unverified until synced."
+
+**The actual insight**: no single store is sufficient, because each one
+answers a *different* question, and the four questions are all genuinely
+needed:
+   - "Does plausible code exist?" → repo.
+   - "Was it actually accepted?" → site.
+   - "Is something in flight or rejected right now, in *this* company's
+     current lifetime?" → Paperclip issues.
+   - "What does a given run actually see?" → the staged workspace, and
+     only after it's been explicitly verified/synced against the repo —
+     never trusted on its own.
+
+Any robust design has to compose these on purpose, not default to whichever
+one happened to be convenient to read from a given script. And it has to
+work for every one of these starting conditions, which a refactor should
+treat as explicit test cases, not afterthoughts:
+
+   - A brand-new company with a brand-new, empty repo (day 0 of a season).
+   - A brand-new company pointed at a repo that **already has solutions in
+     it** (this session's actual situation after every archive+reimport —
+     and the scenario that most exposed the amnesia problem).
+   - The *same* company resuming after a pause/outage, where Paperclip issue
+     history is still valid and shouldn't need to be rebuilt from scratch.
+   - A day where the repo has a *failing or wrong* solution — "a file
+     exists for this day" is not the same as "this day is done," and the
+     design must not conflate the two.
+   - The site says a part is accepted but the repo has no commit that
+     explains it (manual intervention, a reverted commit, a different
+     company's work) — there's no way to fabricate a provenance-bearing
+     commit for this; it has to be a recognized, explicit "can't
+     reconcile automatically" state, not a silent guess either way.
+   - Two company instances somehow both pointed at the same solution repo
+     (shouldn't happen, but a cursor-advancing design like `LAST.md` has no
+     protection against a race if it did).
+   - A staged workspace whose local git state has silently drifted from
+     origin (confirmed to happen in practice this session) — any design
+     that reads repo state inside a run must treat that read as unverified
+     until it has itself confirmed the sync, every time, not just on first
+     use.
+   - The progress cursor itself (whatever store ends up holding it) is
+     missing, corrupted, or behind reality — there needs to be an explicit,
+     tested recovery path that re-derives truth from the other three
+     stores, not just a hope that it never happens.
+
+This deserves real design time before the next refactor touches any of the
+gate/reconciliation code again — most of the churn in this session came from
+answering this question reactively, one bug at a time, instead of up front.
+
 ## From the Fargate migration and WatchDog/ModelTester removal
 
 - **The custom WatchDog agent was not pure redundancy with Paperclip's
