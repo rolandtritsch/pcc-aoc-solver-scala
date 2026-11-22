@@ -17,7 +17,7 @@ def gather(repo, site, assignment):
     statement = f"{year}/problems/Day{day:02}Problem.txt"
     target = repo.path / statement
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("\n\n".join(page["articles"][:part]) + "\n")
+    target.write_text("\n\n".join(a.rstrip() for a in page["articles"][:part]) + "\n")
     input_name = f"{year}/src/main/resources/inputs/Day{day:02}.txt"
     path = repo.path / input_name
     path.parent.mkdir(parents=True, exist_ok=True)

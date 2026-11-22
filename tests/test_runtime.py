@@ -17,7 +17,7 @@ from common import Blocked, calendar, digest, identity, lock, read_json, write_j
 from publication import check_output
 from repository import Repository, load_progress
 from aoc_site import Page, status, verdict
-from stages import submit
+from stages import gather, submit
 from workflow import Controller, assignment, complete_stage
 from package import build, payload, validate
 from entry import run_model
@@ -257,6 +257,35 @@ class GitTests(unittest.TestCase):
         self.assertIn('scala3-aoc-2016', (repo.path / "2016/build.sbt").read_text())
         self.assertIn("2016", (repo.path / ".github/workflows/ci.yml").read_text())
         self.assertTrue((repo.path / "2016/src/main/scala/aoc2016/Day00.scala").is_file())
+
+    def test_gather_strips_trailing_blank_lines_before_whitespace_check(self):
+        repo = self.prepare()
+        shutil.copytree(ROOT / "skills/aoc-runtime/assets/template", repo.path / "0000")
+        files = [str(p.relative_to(repo.path)) for p in (repo.path / "0000").rglob("*") if p.is_file()]
+        repo.commit(files, "template", force=True)
+
+        class FakeGatherSite:
+            def page(self, year, day):
+                # A trailing blank line in the fetched article text (as real
+                # AoC HTML extraction produces) must not break the commit's
+                # git diff --check whitespace gate.
+                return {"articles": ["Day 5: doesn't matter.\n\nHow many strings?\n\n"]}
+
+            def fetch(self, year, day, suffix="", data=None):
+                return "1,2,3\n"
+
+        import repository
+        original = repository.command
+        def run(cwd, args, timeout=900):
+            if args[0] == "sbt":
+                return "Passed: Total 34, Failed 0, Errors 0\nDay00 - part1: 55"
+            return original(cwd, args, timeout)
+        with patch("repository.command", side_effect=run):
+            result = gather(repo, FakeGatherSite(), {"year": 2016, "day": 5, "part": 1})
+        self.assertEqual(result["outcome"], "gathered")
+        text = (repo.path / "2016/problems/Day05Problem.txt").read_text()
+        self.assertTrue(text.endswith("strings?\n"))
+        self.assertFalse(text.endswith("\n\n"))
 
 
 class FakeRepository:
