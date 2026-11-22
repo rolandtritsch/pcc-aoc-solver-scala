@@ -10,6 +10,50 @@ distilled from the recovery/redesign work in November 2026.
 Treat anything below tagged **(unresolved)** as still-open; do not assume it
 was fixed just because a workaround is described.
 
+This includes material harvested from the immediately preceding session in
+this same project (the one that migrated agents to the dedicated Fargate
+runtime and removed the WatchDog/ModelTester agents, commits `f1a903e` and
+`a445951`), not just the session that did the `daily-selection` latency fix.
+
+## From the Fargate migration and WatchDog/ModelTester removal
+
+- **The custom WatchDog agent was not pure redundancy with Paperclip's
+  built-in watchdog — it was a different layer, removed as a deliberate
+  simplicity trade-off.** Paperclip has its own run/task watchdog
+  (active-run and task-level liveness, bounded event/log reads, per-agent
+  cost tracking) — that's infra-level "is this still alive." The custom
+  WatchDog agent did *semantic* monitoring on top of that: stall/loop
+  detection by comparing repeated action/result pairs across runs. Removing
+  it (in favor of relying on Paperclip's native mechanism) traded that
+  semantic layer away for simplicity. If a refactor hits repeated-failure or
+  stuck-loop patterns that Paperclip's own watchdog doesn't catch (plausible
+  given the staged-workspace issues above), this is the capability that was
+  given up — worth reconsidering, not assuming it was dead weight.
+- **Infra migrations leave residue — check for it explicitly.** After
+  deploying the dedicated runtime, a leftover smoke-test container
+  (`pcc-aoc-runtime-smoke`) was still running, and a temporary SSH
+  client keypair + `known_hosts` file were still sitting in `/tmp`. None of
+  this broke anything, but it's easy to forget as "done." Also confirmed
+  the old toolchain (Java 25, sbt, asdf shims — about 465 MB) was cleanly
+  removable from the controller's EFS once everything ran on the dedicated
+  runtime instead; repos, company data, and vault secrets were untouched by
+  that cleanup.
+- **A locally logged-in Paperclip CLI session is reusable from scripts.**
+  `~/.paperclip/{context.json,auth.json}` — the same thing
+  `runtime/configure-company.py`'s `Client` class reads — can be reused
+  directly by a throwaway script to query the API (e.g. agent
+  status/environment binding/secret attachment) without minting any new
+  token or asking the user for credentials. This is the same pattern this
+  session ended up reusing independently (see "Working with the platform"
+  below) — worth formalizing into an actual helper instead of
+  reimplementing it ad hoc each time.
+- **Credential-hygiene pass before pushing infra changes**: run
+  `git diff --check` (catches whitespace issues) and grep the actual diff
+  content for anything that looks like a real secret, confirming only
+  placeholders (`<public-key>`, `<ECR-repository>`, `<digest>`, etc.) are
+  present — done explicitly before committing the Fargate migration, worth
+  keeping as a standing step for any future infra-touching commit.
+
 ## Upstream Paperclip platform bugs and quirks
 
 These are properties of Paperclip itself (`/home/yoda/Development/Home/paperclip`
