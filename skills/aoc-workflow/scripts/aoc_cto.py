@@ -70,9 +70,19 @@ def write_last_part(repo_dir, part):
 
 
 def sync_repo(repo_dir):
-    """Fast-forward-only pull so the gate's LAST.md read reflects the
-    latest accepted part, not a stale staged checkout. Never discards
-    another agent's work: a diverged or dirty tree fails closed."""
+    """Push outgoing commits, then fast-forward-only pull, so the gate's
+    LAST.md read reflects the latest accepted part rather than a stale
+    staged checkout. A staged workspace commonly has locally-committed
+    Reviewer skill improvements that were never pushed; pushing them first
+    (succeeds whenever local is a strict ancestor-extension of origin) is
+    what resolves that without ever discarding another agent's work. A
+    push that fails is swallowed here -- genuine divergence still fails
+    closed below, from the merge's own error."""
+    git(repo_dir, "fetch", "origin", "main")
+    try:
+        git(repo_dir, "push", "origin", "HEAD:main")
+    except RuntimeError:
+        pass
     git(repo_dir, "fetch", "origin", "main")
     git(repo_dir, "merge", "--ff-only", "origin/main")
 

@@ -322,7 +322,7 @@ class WriteLastPartTest(unittest.TestCase):
 
 
 class SyncRepoTest(unittest.TestCase):
-    def test_fetches_then_fast_forwards_main(self):
+    def test_fetches_pushes_then_fast_forwards_main(self):
         calls = []
         def fake_git(repo, *args):
             calls.append((repo, args))
@@ -331,8 +331,36 @@ class SyncRepoTest(unittest.TestCase):
             wrapper.sync_repo("/repo")
         self.assertEqual(calls, [
             ("/repo", ("fetch", "origin", "main")),
+            ("/repo", ("push", "origin", "HEAD:main")),
+            ("/repo", ("fetch", "origin", "main")),
             ("/repo", ("merge", "--ff-only", "origin/main")),
         ])
+
+    def test_push_resolves_locally_committed_but_unpushed_work(self):
+        """A staged checkout with unpushed Reviewer commits: push succeeds
+        (local is a strict extension of origin), so the merge that follows
+        is a trivial no-op fast-forward rather than a failure."""
+        calls = []
+        def fake_git(repo, *args):
+            calls.append(args)
+            return ""
+        with patch.object(wrapper, "git", fake_git):
+            wrapper.sync_repo("/repo")
+        self.assertIn(("push", "origin", "HEAD:main"), calls)
+        self.assertIn(("merge", "--ff-only", "origin/main"), calls)
+
+    def test_rejected_push_does_not_block_the_fallback_merge_attempt(self):
+        """Genuine divergence: push is rejected and swallowed; the merge
+        still runs and raises its own informative error."""
+        def fake_git(repo, *args):
+            if args[0] == "push":
+                raise RuntimeError("git push exited 1: rejected")
+            if args[0] == "merge":
+                raise RuntimeError("git merge exited 128: diverged")
+            return ""
+        with patch.object(wrapper, "git", fake_git):
+            with self.assertRaisesRegex(RuntimeError, "diverged"):
+                wrapper.sync_repo("/repo")
 
 
 class SiteCompleteTest(unittest.TestCase):
