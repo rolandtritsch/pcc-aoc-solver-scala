@@ -1,5 +1,20 @@
 # Lessons learned
 
+## Current implementation policy (November 22 refactor)
+
+The user explicitly superseded the historical review requirements below:
+there are four roles, no Reviewer, no source audit, and no algorithm assessment.
+Keep the first-principles solving instruction without claiming audited provenance.
+[DESIGN.md][] is the current architecture; `operators/OPERATIONS.md`
+is the operator procedure. Historical bugs and observations below remain evidence,
+not instructions to restore removed roles or the LAST.md cursor.
+
+Runtime modules live under `skills/aoc-runtime/scripts/`; only that skill carries
+executables. Operators live under `operators/` and are excluded from imports.
+Run `python3 -m unittest discover -s tests -v` and compile changed Python modules.
+Qualify import previews against the actual API: YAML list indentation can silently
+lose routine triggers. Do not equate local tests with live SSH/disaster recovery.
+
 This file is institutional memory for whoever (human or Claude) next works on
 this package, especially a major refactor. It is not user-facing documentation
 (see [README.md][readme] for that) and not runtime agent instructions (see
@@ -14,6 +29,25 @@ Expanded on November 22, 2026 from the retained local Codex and Claude session
 histories, the repository reports, and the current implementation. The session
 inventory below distinguishes direct work from adjacent infrastructure context.
 These are historical findings, not a fresh audit of the deployed company.
+
+## Findings verified during the refactor
+
+- Fresh import creates the company before rejecting missing required values.
+  Stage bindings as optional in the import; enforce credentials before activation.
+- Agent PATCH restores redacted placeholders, but company import refuses them.
+  Preserve secret references and reapply declarative plain settings during import.
+- Existing managed instruction entries must use the canonical revision API.
+  Import warnings alone do not establish that new instructions were installed.
+- Repeated routine import can create duplicates despite replace collisions.
+  Reconcile the canonical routine separately and archive disabled duplicates.
+- Paperclip's long XDG path exceeded sbt's Unix socket limit in the actual
+  runtime. Helpers use foreground `sbt --server`; direct commands get a short
+  `SBT_GLOBAL_SERVER_DIR`. The real remote template passed 34 tests afterward.
+- Never strip leading whitespace from Git porcelain output: those are status
+  columns. Resume only the assigned attempt's intended files on the exact remote
+  base, and preserve foreign work.
+- Bootstrap commits only the template's tracked file inventory; global ignore
+  rules must not silently drop version pins. Do not stage generated build files.
 
 ## Refactor priorities and evidence limits
 
@@ -705,3 +739,5 @@ preserving the reasoning, not just the outcome:
 [workflow-fixes]: reports/2026-11-19-review-workflow-fixes.md
 [audit]: reports/2026-11-19-first-principles-audit.md
 [decisions]: artifacts/decision-log.md
+
+[DESIGN.md]: DESIGN.md

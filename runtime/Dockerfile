@@ -13,7 +13,7 @@ RUN apt-get update \
 
 COPY runtime/toolchain.json runtime/install-toolchain.py /opt/aoc-runtime/
 RUN python3 /opt/aoc-runtime/install-toolchain.py
-COPY . /opt/aoc-company
+COPY runtime/launch.py /opt/aoc-runtime/launch.py
 COPY runtime/entrypoint.sh /usr/local/bin/aoc-runtime-entrypoint
 COPY runtime/agent.sh /usr/local/bin/aoc-agent
 COPY runtime/sshd_config /etc/ssh/sshd_config
@@ -23,7 +23,6 @@ RUN chmod 755 /usr/local/bin/aoc-runtime-entrypoint /usr/local/bin/aoc-agent \
 
 ENV JAVA_HOME=/opt/java \
     PATH=/opt/java/bin:/opt/sbt/bin:/usr/local/bin:/usr/bin:/bin \
-    AOC_COMPANY_PACKAGE_DIR=/opt/aoc-company \
     AOC_OPENCODE_BINARY=/usr/local/bin/opencode
 RUN java -version && opencode --version && git --version && gh --version \
     && test -x /opt/sbt/bin/sbt

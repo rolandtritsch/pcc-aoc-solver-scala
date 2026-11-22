@@ -3,7 +3,7 @@ name: AoC Solver - Scala
 description: Solve every Advent of Code part from 2015 through 2025 in Scala 3, one day per CTO selection.
 slug: aoc-solver-scala
 schema: agentcompanies/v1
-version: 1.0.0
+version: 2.0.0
 license: MIT
 authors:
   - name: Roland Tritsch
@@ -14,22 +14,12 @@ goals:
   - Use 0000 as the template and YYYY as each independent year project
 ---
 
-The CTO checks readiness once daily at 06:00 UTC, an hour after AoC's
-midnight-EST puzzle release, and selects the earliest unfinished year/day when clear.
-Order is 2015 Day01 through Day25, then 2016, through 2024 Day25,
-then 2025 Day01 through Day12. Both parts belong to the authorized day;
-part2 starts only after part1 acceptance and completed review. Rejections
-are reviewed before the CTO can authorize a repair at a later readiness check.
-An unfinished day blocks selection of another day. Final-day part2 follows
-the authenticated completion interaction rather than an invented answer.
+The CTO authorizes one day at 06:00 UTC. Gatherer, Solver, and Submitter
+execute its stages sequentially. Accepted part1 continues to part2; accepted
+part2 ends the day. Rejections wait for the next daily or manual check.
+There is no Reviewer, source audit, or algorithm assessment. Solver retains
+the first-principles instruction. See [DESIGN.md][] for architecture and
+[README.md][] for operations.
 
-Solutions go to [scala3-aoc][repo], in `YYYY/`, using `0000/` as the reusable
-template. Shared skills and improvements live at that repository's root.
-The [daily task][daily] and `.paperclip.yaml` define the once-daily 06:00 UTC
-routine assigned to the CTO; it is the only trigger for readiness checks, so the
-CTO's own interval heartbeat stays disabled. This package does not modify the
-original company. Agent/run health is monitored by Paperclip's native
-watchdog mechanisms rather than a company-owned observer agent.
-
-[repo]: https://github.com/rolandtritsch/scala3-aoc
-[daily]: tasks/daily-selection/TASK.md
+[DESIGN.md]: DESIGN.md
+[README.md]: README.md

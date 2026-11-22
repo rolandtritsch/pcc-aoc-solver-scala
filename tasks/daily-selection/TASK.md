@@ -5,12 +5,7 @@ assignee: cto
 recurring: true
 ---
 
-Once daily at 06:00 UTC, an hour after AoC's midnight-EST puzzle release,
-follow aoc-workflow and the CTO instructions to check for the next
-unfinished Advent of Code day in 2015–2025. Authorize at most
-one day (both parts sequentially) or a repair of the current day. If work or
-review is unfinished, record that result and complete this routine occurrence
-without selecting another day. If all 524 parts have accepted completed
-reviews, record completion and create no puzzle work. Close this occurrence
-after the decision; never leave it open while specialists work. Routine
-occurrences are CTO coordination tasks, not specialist pipeline stages.
+At 06:00 UTC, run the deterministic controller. Resume the current authorized
+day or authorize at most one unfinished day, both parts sequentially. Never
+select another day from a specialist notification. Complete this occurrence
+after the decision. The separate control task tracks the authorized day.

@@ -1,0 +1,32 @@
+{
+  "company": {
+    "agentStatus": {
+      "CTO": "idle",
+      "Problem Gatherer": "idle",
+      "Problem Solver": "idle",
+      "Problem Submitter": "idle"
+    },
+    "generation": "b116b0b2-f5c7-4725-a8e3-ab2b9360b837",
+    "id": "1f5735e4-3815-4ff1-b782-05b2444288d2",
+    "liveRuns": 0,
+    "roles": [
+      "Problem Gatherer",
+      "CTO",
+      "Problem Solver",
+      "Problem Submitter"
+    ],
+    "url": "https://paperclip.tritsch.org/AOCA/dashboard"
+  },
+  "controllerImage": "ghcr.io/rolandtritsch/paperclip:sha-03cdb6a",
+  "note": "Restoration after the tools-rollback qualification drill was interrupted mid-run (Codex usage limit). Rolled ECS back to the qualified digest, resumed all 4 agents, re-enabled the daily routine/trigger.",
+  "previousLiveDigest": "sha256:c65e86829435951a5189568cc0db4f714aa0388f825d962c8749a3fe402a274d (rollback-drill test image, restored away from)",
+  "recordedAt": "2026-11-22T15:52:06.618316+00:00",
+  "schedule": {
+    "cronExpression": "0 6 * * *",
+    "enabled": true,
+    "nextRunAt": "2026-11-23T06:00:00.000Z",
+    "timezone": "UTC"
+  },
+  "schema": 1,
+  "toolsImage": "519722017377.dkr.ecr.eu-west-1.amazonaws.com/paperclip-aoc-runtime@sha256:21f47849338b13b56a492cb8fb33f7253d817c48fae92819d933676cf67f1087"
+}

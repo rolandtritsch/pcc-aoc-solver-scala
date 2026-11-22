@@ -11,10 +11,13 @@ def main():
     parser.add_argument("--repository", required=True)
     parser.add_argument("--profile", default="roland")
     parser.add_argument("--region", default="eu-west-1")
+    parser.add_argument("--build-label", action="append", default=[], metavar="KEY=VALUE",
+                        help="Optional image metadata, including qualification-build identity")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
+    labels = [item for value in args.build_label for item in ("--label", value)]
     subprocess.run(["docker", "build", "--platform", "linux/amd64", "-f", "runtime/Dockerfile",
-                    "-t", "pcc-aoc-runtime:local", "."], cwd=root, check=True)
+                    "-t", "pcc-aoc-runtime:local", *labels, "."], cwd=root, check=True)
     image_id = subprocess.check_output(["docker", "image", "inspect", "pcc-aoc-runtime:local",
                                         "--format", "{{.Id}}"], text=True).strip().split(":")[1]
     tag = "image-" + image_id[:16]

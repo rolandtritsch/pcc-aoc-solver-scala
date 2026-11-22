@@ -1,0 +1,88 @@
+{
+  "artifact": ".paperclip/releases/6885f5a95ff8924887a5a9edd7316fe5517dff809114a8536f5f47de09db4dd2.json",
+  "company": {
+    "generation": "b116b0b2-f5c7-4725-a8e3-ab2b9360b837",
+    "id": "1f5735e4-3815-4ff1-b782-05b2444288d2",
+    "liveRuns": 0,
+    "roles": [
+      "Problem Gatherer",
+      "Problem Solver",
+      "CTO",
+      "Problem Submitter"
+    ],
+    "url": "https://paperclip.tritsch.org/AOCA/dashboard"
+  },
+  "controllerImage": "ghcr.io/rolandtritsch/paperclip:sha-03cdb6a",
+  "package": {
+    "dirty": true,
+    "packageHash": "6885f5a95ff8924887a5a9edd7316fe5517dff809114a8536f5f47de09db4dd2",
+    "sourceCommit": "5ef228eeabde8f6361ac547bfdd38dfaf908567a"
+  },
+  "progress": {
+    "nextPart": {
+      "day": 5,
+      "part": 1,
+      "year": 2015
+    },
+    "verifiedParts": [
+      "2015/01/1",
+      "2015/01/2",
+      "2015/02/1",
+      "2015/02/2",
+      "2015/03/1",
+      "2015/03/2",
+      "2015/04/1",
+      "2015/04/2"
+    ]
+  },
+  "qualification": {
+    "account": "b412c0ed92a2fe625f069cc5c6e27115bc25830227e8b4d96cbfa2b5f5eaa3e1",
+    "gitAuthorization": "push permission confirmed",
+    "imageDigest": "sha256:21f47849338b13b56a492cb8fb33f7253d817c48fae92819d933676cf67f1087",
+    "probeTask": "16898010-542a-42b0-bf3b-dfbcab4b154d",
+    "releaseDelivery": "6885f5a95ff8924887a5a9edd7316fe5517dff809114a8536f5f47de09db4dd2",
+    "sshHostKey": "existing authenticated SSH pin survived task replacement",
+    "templateTests": {
+      "commit": "787950b562366cb3f63cceed5c1846f41e316c46",
+      "outputHash": "d0b64e62347c175596a7bb970dea562485292bd7293e6af9fe2d83f1f3e1cc6f",
+      "summary": [
+        "Passed: Total 34, Failed 0, Errors 0, Passed 34"
+      ]
+    }
+  },
+  "recordedAt": "2026-11-22T14:43:50.296361+00:00",
+  "schedule": {
+    "cronExpression": "0 6 * * *",
+    "enabled": true,
+    "nextRunAt": "2026-11-23T06:00:00.000Z",
+    "timezone": "UTC"
+  },
+  "schema": 1,
+  "solutionGuidanceCommit": "787950b562366cb3f63cceed5c1846f41e316c46",
+  "sourceChanges": "company and infrastructure edits remain uncommitted; saved package hash identifies deployed bytes",
+  "steadyState": {
+    "result": {
+      "nextPart": {
+        "day": 5,
+        "part": 1,
+        "year": 2015
+      },
+      "outcome": "ready"
+    },
+    "run": "47848977-aa8b-4d0c-974b-390d8db1b0cd",
+    "seconds": 32.496,
+    "status": "succeeded",
+    "task": "2dcfdc98-891e-4574-833f-0f39ad888539"
+  },
+  "tests": {
+    "companyUnitTests": 49,
+    "infrastructureUnitTests": 12,
+    "liveTemplateTests": 34
+  },
+  "toolsImage": "519722017377.dkr.ecr.eu-west-1.amazonaws.com/paperclip-aoc-runtime@sha256:21f47849338b13b56a492cb8fb33f7253d817c48fae92819d933676cf67f1087",
+  "unqualified": [
+    "fresh-stack bootstrap on a disposable stack",
+    "destructive EFS/database reset and paired-vault restore drill",
+    "new puzzle solve/submission after refactor"
+  ]
+}
