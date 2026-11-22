@@ -138,6 +138,12 @@ def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
             return 2
         return probe([binary, *args], input=prompt, text=True, check=False).returncode
     if args and args[0] == "run":
+        def report(text):
+            # The same shape the gate's own failure path uses: this is what
+            # OpenCode's harness recognizes as a postable text part. A plain
+            # print() here is silently lost, not posted as a comment.
+            print(json.dumps({"type": "text", "part": {"type": "text", "text": text}}))
+
         repo_dir = os.environ.get("AOC_REPO_DIR")
         if repo_dir:
             # The gate reads LAST.md from this checkout; it must be current
@@ -146,7 +152,7 @@ def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
             try:
                 sync(repo_dir)
             except Exception as error:
-                print("CTO repo sync failed: " + type(error).__name__)
+                report(f"CTO repo sync failed: {type(error).__name__}: {error}")
                 return 2
 
         def recheck():
@@ -167,14 +173,14 @@ def run(args, check=check_cycle, launch=os.execv, probe=subprocess.run,
             try:
                 complete = site_complete_check(result["nextPart"])
             except Exception as error:
-                print("CTO site-status check failed: " + type(error).__name__)
+                report(f"CTO site-status check failed: {type(error).__name__}: {error}")
                 return 2
             if not complete:
                 break
             try:
                 reconcile_existing(result["nextPart"], repo_dir)
             except Exception as error:
-                print("CTO reconciliation failed: " + type(error).__name__)
+                report(f"CTO reconciliation failed: {type(error).__name__}: {error}")
                 return 2
             result, code = recheck()
             mode = result.get("mode")
