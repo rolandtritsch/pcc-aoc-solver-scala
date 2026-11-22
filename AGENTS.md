@@ -108,6 +108,59 @@ This deserves real design time before the next refactor touches any of the
 gate/reconciliation code again — most of the churn in this session came from
 answering this question reactively, one bug at a time, instead of up front.
 
+## Recommended architecture direction: centralize orchestration, minimize agents
+
+A direct response to the pains above, worth taking seriously in the next
+refactor rather than incrementally patching the current five-agent design:
+
+- **Only the CTO should assign work.** Right now, assignment is spread
+  across multiple agents — the Submitter creates the Reviewer's handoff,
+  the Reviewer creates the next part2 Gatherer handoff, and so on. Every
+  one of those creation points is another place that has to get Paperclip's
+  issue-assignment-wake semantics right (see the `queueIssueAssignmentWakeup`
+  behavior above) and another place state can drift or race. Concentrating
+  all task/work assignment in one place — the CTO — makes "who starts what,
+  and when" something you can reason about by reading one agent's
+  instructions, instead of tracing a chain of handoffs through several.
+- **Push everything deterministic into scripts, for every agent, not just
+  the CTO.** This session's biggest wins were exactly this: dropping sbt
+  re-verification in favor of trusting a committed test (a fact, not a
+  judgment call), making `LAST.md` a plain fact instead of something an
+  LLM computes, and moving the "is this accepted" question to a
+  deterministic site-status script instead of agent reasoning. Generalize
+  that principle to the whole pipeline: gathering official material,
+  verifying a submission's formatting/tests/parity, and submitting an
+  answer are all mechanical enough to be scripts with no judgment calls in
+  them. **Repeatability** (the actual stated goal — being able to start a
+  puzzle's solve from scratch and get the same result) depends on
+  minimizing how much of the pipeline is an LLM's one-off decision versus a
+  script's reproducible one.
+- **Use Paperclip issues/tasks for workflow *state*, not for driving
+  behavior.** They're the right tool for "what stage are we in, what's
+  blocked, what's rejected" — exactly the one thing from the source-of-truth
+  discussion above that only Paperclip's own issue store can answer. They
+  should not also be the mechanism that decides *what happens next*; that's
+  what centralizing in the CTO (plus deterministic scripts) is for.
+- **Only the Solver actually needs to reason.** Gathering official
+  material, verifying/submitting an answer, and reviewing a result are all
+  candidates for scripting (per above); writing an idiomatic, correct
+  solution to a novel puzzle is the one genuinely open-ended, judgment-
+  requiring step in the whole pipeline. Treat agent count as a cost, not a
+  default — every additional LLM-driven agent is another thing that can be
+  woken unexpectedly, another provenance/contract surface, another source
+  of nondeterminism.
+- **Remove the Solution Reviewer agent.** It's the clearest instance of the
+  principle above: this session's entire latency bug existed only because a
+  live Reviewer agent got woken to "review" work that a deterministic
+  check had already verified. The Reviewer's actual responsibilities —
+  validating a result block against the contract, deciding accept/reject,
+  advancing the day-to-part2 handoff — are mechanical enough to fold into a
+  script the CTO runs directly, with no agent (and no wake-on-assignment
+  risk, no provenance-contract trap) involved at all. If something
+  genuinely needs human-grade judgment about a rejected attempt, that's a
+  CTO (or a repair-specific Solver) decision, not a reason to keep a whole
+  review-agent role around for the common case.
+
 ## From the Fargate migration and WatchDog/ModelTester removal
 
 - **The custom WatchDog agent was not pure redundancy with Paperclip's
