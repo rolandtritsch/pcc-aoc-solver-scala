@@ -10,10 +10,210 @@ distilled from the recovery/redesign work in November 2026.
 Treat anything below tagged **(unresolved)** as still-open; do not assume it
 was fixed just because a workaround is described.
 
-This includes material harvested from the immediately preceding session in
-this same project (the one that migrated agents to the dedicated Fargate
-runtime and removed the WatchDog/ModelTester agents, commits `f1a903e` and
-`a445951`), not just the session that did the `daily-selection` latency fix.
+Expanded on November 22, 2026 from the retained local Codex and Claude session
+histories, the repository reports, and the current implementation. The session
+inventory below distinguishes direct work from adjacent infrastructure context.
+These are historical findings, not a fresh audit of the deployed company.
+
+## Refactor priorities and evidence limits
+
+- **Keep the safety invariants while reducing moving parts.** One selection
+  owner, deterministic stage transitions, explicit identities and receipts,
+  bounded retries, and durable completion are the useful outcomes. The current
+  number of agents, scripts, status fields, and workarounds is not a requirement.
+- **Separate observed fixes, open defects, and proposed architecture.** The
+  CTO-only assignment and Reviewer removal recommendations below are a design
+  direction, not an implemented or validated replacement. Mechanical checks can
+  be scripted; source-provenance audit and algorithm assessment still need an
+  explicit owner and evidence policy if the Reviewer disappears.
+- **Do not confuse repeatable orchestration with identical model output.**
+  Scripts can make inputs, transitions, verification, and publication repeatable.
+  They do not guarantee the same generated algorithm or code on every solve.
+- **Do not call the latency problem solved yet.** The requested target was
+  selection in less than a minute. Removing sbt and accidental Reviewer wakes
+  addressed identified costs, but the later run hit unresolved workspace drift.
+  No reliable final end-to-end timing was established. Measure cold start,
+  normal selection, reconciliation, and recovery separately, including API/Git
+  calls and any model startup; passing mocked tests does not prove that target.
+- **Make recovery a normal workflow.** Reimports, stale workspaces, partial
+  writes, and site/repository disagreement occurred in real operation. Avoid
+  another design that only works after manually seeding a cursor in a healthy
+  checkout. Current `read_last_part()` rejects a missing `LAST.md`; empty-repo
+  initialization remains a design requirement, not a demonstrated capability.
+
+## Earlier workflow bugs and successful safeguards
+
+- **A correct `wait` decision can still strand the routine.** AOC-9 correctly
+  waited for a specialist, but the launcher exited without completing its own
+  occurrence issue. Retries exhausted without a durable change. The fix was to
+  persist `wait`/`complete`, mark the owned coordination issue done, and verify
+  that write before exiting successfully. Preserve company/assignee/task checks;
+  a successful process exit or captured comment is not durable completion.
+- **Bind review to the actual publication, not a title convention.** Early
+  validation extracted a commit only from titles containing `attempt commit`;
+  the real AOC-6/AOC-11 titles did not. Fetch full issue details (list responses
+  truncate descriptions), parse the publication receipt, and require the full
+  year/day/part/commit identity to match the review result. Keep this shared in
+  `aoc_review_contract.py`, rather than separate gate and reviewer interpretations.
+- **The first two reviews found evidence gaps, not wrong puzzle answers.** Both
+  2015 Day01 parts were accepted; the useful fixes concerned provenance, helper
+  discovery, commit binding, and task completion. Inspect reports and artifacts
+  before creating repair work; do not automatically re-solve accepted code to
+  repair missing workflow evidence. See the [workflow fixes report][workflow-fixes].
+- **Make publication one guarded operation.** The existing publisher runs
+  formatting, the assigned-day suite, the full year suite, and the runner;
+  commits only allowed files; pushes; verifies clean HEAD/tracking/live-remote
+  equality; then creates the same-part handoff. Preserve this ordering and its
+  retry/deduplication safeguards. A push failure must not create submission work.
+- **A green sbt exit is insufficient.** The template's sbt 2 thin-client `test`
+  invocation ran zero suites. Use the established `testOnly *` path and assert
+  that the assigned suite actually ran with positive passing counts. Validate
+  exactly one runner answer for the requested part. Run Git at repository root
+  and sbt in the selected independent `YYYY/` project, not `0000/` or repo root.
+- **Runtime skill text does not guarantee supporting files exist.** The live
+  skill loader omitted helper scripts even though the canonical package had
+  them. `AOC_COMPANY_PACKAGE_DIR` and explicit deployed helper paths fixed
+  discovery. Reuse the publisher verifier instead of asking an agent to invent
+  another verifier. Check executable permissions and provide `AOC_REPO_DIR` and
+  full identity arguments when testing a helper outside its usual launcher.
+
+## First-principles solving and historical reconciliation
+
+- **State the source policy before solving.** Original instructions asked for
+  reasoning and tests but did not explicitly prohibit existing solutions. The
+  correction banned puzzle-specific solutions, walkthroughs, editorials, and
+  answer lists, including local copies and other agents' lookups. Official puzzle
+  material, generic algorithms/docs, template utilities, dependencies, and
+  necessary coordination remain allowed. Preserve this distinction in a simpler
+  pipeline; it is an instruction/audit policy, not network isolation.
+- **Audit actual recorded actions, not just a solver's declaration.** The full
+  available Day01 solver logs were checked against recorded byte counts and
+  tool actions. No prohibited lookup was observed. That establishes recorded
+  behavior only, not absence of model training knowledge. Missing/truncated logs
+  mean `unknown`; neither a passing test nor AoC acceptance clears provenance.
+  Keep sources, run IDs, log completeness/counts, algorithm/invariant, complexity,
+  tests, and an independent check in the handoff. See the [audit report][audit].
+- **Contract validation is not evidence collection.** A well-formed provenance
+  block validates declarations. Someone must still inspect the logs and assess
+  the solution. Preserve that responsibility when replacing agents with scripts.
+- **Reconciliation needs a distinct evidence claim.** The old synthetic result
+  said `accepted: true` with provenance `unknown`, which its own blocking
+  self-check rejected. The Reviewer then searched for solver runs that did not
+  exist in the new company's history. `reconciled` plus `verifiedBy` and
+  `siteConfirmed` fixed that contract mismatch; it records historical site
+  acceptance, not a newly completed first-principles audit. Keep finale-only
+  `not_applicable` separate; it is not a general provenance escape hatch.
+- **Skipping sbt is conditional on trusted publication evidence.** A source/test
+  pair and a test-name marker are discovery clues. They do not independently
+  prove the tests ran, the working tree matches the cited commit, or that commit
+  produced the site's accepted answer. Current `find_existing_commit()` reads
+  working-tree files and the latest commit touching either path; it does not
+  verify a publication receipt. A refactor should retain commit-bound evidence
+  and define how manual/imported/dirty solutions are reconciled, without putting
+  a full JVM build into every readiness check.
+- **Account authentication and site parsing need explicit failure states.**
+  Current `parts_complete()` maps any page without completion markers to
+  `(False, False)`. HTTP failures raise, but an HTTP-200 login/unrecognized page
+  is not distinguished from an unsolved puzzle. This is a current-code gap to
+  address, not a previously verified fix. Require authenticated, recognized
+  evidence before treating the absence of markers as permission to solve/submit.
+
+## Deployment and operations lessons from the full history
+
+- **One schedule owns selection.** The routine wakes the CTO; specialists wake
+  through authorized handoffs. Keep interval heartbeats disabled to avoid a
+  second selection path. The schedule changed from 06:00 Europe/Dublin to every
+  two minutes, then back to **06:00 UTC** (`0 6 * * *`, current manifest).
+  Historical reports describe earlier settings. Verify the imported trigger,
+  timezone, assignee, enabled state, and next run; malformed YAML indentation
+  once silently dropped triggers. Do not restore old polling from an old report.
+- **Keep calendar policy in one tested place.** The package covers 2015–2024
+  with 25 days each and 2025 with 12: 262 days/524 parts. Preserve part1→part2,
+  day rollover, year rollover, and terminal completion without inventing 2026
+  work. Bootstrap missing years from `0000/`, rename packages/update CI, exclude
+  generated artifacts, and leave the template unchanged. Keep finale handling
+  explicit rather than treating every part as a computational submission.
+- **Provision tools in the execution environment.** PATH entries and company
+  imports do not install Java/sbt. Earlier tools lived only in manually populated
+  controller EFS; a fresh deployment could not reproduce that setup. The adopted
+  replacement is a dedicated Fargate SSH runtime with pinned toolchain/image,
+  persistent caches, and vault credentials supplied to runs. Keep the controller
+  independent of company-specific tools and verify a build on the actual target.
+- **Availability, checkout, and authorization are separate checks.** A public
+  clone does not prove push access; `gh` accepting `GH_TOKEN` does not configure
+  arbitrary Git commands. Preserve the run credential broker's PATH precedence,
+  repository-local Git credential helper/identity, expected origin check, and
+  explicit `main` setup for detached SSH staging. Local paths do not appear
+  automatically on the remote host; probes need a provisioned remote directory.
+- **Validate the adapter path actually used.** The custom OpenCode launcher
+  required the legacy runner. Its credential-free exact hello probe must bypass
+  the puzzle gate narrowly; broad unauthenticated bypasses are not a fix. A
+  hello success establishes launcher/provider readiness, not authenticated API,
+  workspace, puzzle, or publication readiness. Test each boundary separately.
+- **Persist SSH changes through task replacement.** Adding a new public key to
+  a running container worked until replacement: startup regenerated
+  `authorized_keys` from the old configured key. Updating declarative key config
+  and fixing file ownership for the unprivileged SSH reader resolved it. Test
+  after a fresh task starts, not just immediately after an ECS Exec patch.
+- **Reimport is not an authentication repair.** The same run-token 401 recurred
+  on a fresh company. Setting `defaultResponsibleUserId`, repeated retries,
+  replacing agent lookups with static IDs, and controller restarts did not fix
+  it. Compare the failing API call with a known-working credential before
+  changing unrelated state; the standing-key workaround below fixed API access.
+- **Reimport creates a new identity graph.** Rebind company-scoped secrets,
+  environment key references, routines/assignees, instructions, skills, and API
+  keys. New agents need `defaultEnvironmentId`; a successful import alone does
+  not prove readiness. Retiring an agent also requires checking orphaned skills
+  and assignments, not just deleting its package directory.
+- **Pausing agents does not disable the schedule.** The routine continued
+  firing against a paused CTO and reported it was not invokable. For maintenance
+  or retirement, inspect triggers and live runs as well as agent status. Resuming
+  specialists can immediately continue old work; do not assume they wait for a
+  fresh CTO selection. Avoid bulk manual triggers while a coalesced occurrence
+  or real specialist run is active.
+- **Verify source, image, and live configuration separately.** A diagnostic
+  container patch made auth work while the deployed image still lacked the new
+  reconciliation feature. Remove probes, rebuild/publish, deploy the immutable
+  digest, wait for completed rollout, inspect deployed code, and exercise the
+  real run. Local unit tests, Git publication, and an image push each prove only
+  their own layer. Record the digest with the release: it was held in a local,
+  gitignored Pulumi config, leaving Git alone unable to reconstruct deployment.
+- **Keep secrets out of research artifacts.** Required secret declarations do
+  not create values/bindings. Use existing authenticated CLI/vault mechanisms;
+  do not copy tokens, cookies, key material, or raw credential-bearing session
+  excerpts into lessons or patches. Database-encrypted vault recovery requires
+  both the database and persisted encryption key; replacing providers must
+  preserve secret IDs/versions and bindings. This was handled in the adjacent
+  infrastructure work, not by changing the company manifest alone.
+
+## Session inventory and coverage
+
+Searched retained `~/.codex/sessions` and `~/.claude/projects`/`sessions` for
+the repository name and workflow helper names, then inspected conversation
+content to separate work from incidental listings and injected memory. IDs are
+local history lookup keys, not credentials or Paperclip solver-run IDs.
+
+| Date | Session ID | Contribution |
+| --- | --- | --- |
+| Nov 18–19 | Codex `01a1ef74-7fff-76c3-b0d7-acd8efc3db31` | Created the multi-year package; import/provider/probe fixes; first solve; first-principles audit and policy. |
+| Nov 19 | Codex `01a1f266-f22e-7e02-a981-2273c9b313eb` | AOC-6/AOC-11 review fixes, AOC-9 completion, shared contract/verifier, deployment, two-minute polling. |
+| Nov 20 | Codex `01a1f7c0-b858-7473-a1fa-0add1cdc26b5` | Paused all seven AoC agents and verified zero live runs. |
+| Nov 21 | Codex `01a1fcd9-954c-72c2-b5c9-93e43ec43d49` | Git/credential/toolchain investigation; vault migration; required inputs; dedicated runtime implementation and handover. |
+| Nov 21 | Claude `02dd63c1-de51-45a7-a7a3-d6e8b2a037c2` | Runtime cleanup, publication/readiness checks, WatchDog/ModelTester removal work. |
+| Nov 21–22 | Claude `79b3bdfb-cbd7-4807-a77c-774a6d71da10` | Continues the preceding history; schedule, lifecycle/import/auth recovery, reconciliation/cursor redesign, unresolved workspace drift, existing lessons. Shared prefix counted once when extracting lessons. |
+| Nov 21–22 | Claude nested `agent-ab8176a5385b598f7` | Reviewer latency investigation: impossible provenance contract and missing reconciliation fast path; part of the preceding session. |
+| Nov 20 | Codex `01a1f7d2-9733-70a2-9051-2265f3f52cea` | Adjacent Paperclip/Pulumi runtime architecture and upstream-image work; context for the dedicated runtime choice. |
+| Nov 21 | Codex `01a1fccd-c447-7c10-b2d0-a1d3b0e87258` | Adjacent startup-secret removal and controller cleanup; distinguishes service credentials from company vault bindings. |
+| Nov 19 | Codex `01a1f3fe-31c0-7e92-a7d3-ab80dc7a38ad`, `01a1f484-31ff-7182-8e6a-1b5ecb7609d7` | Adjacent DevOps company work referencing the AoC package; not evidence that an AoC behavior was tested. |
+
+Two other exact-name Codex matches (`01a1f851-2ddf-7660-a65d-28e83b7430e2`,
+`01a1f992-402a-7641-be62-7e45f8f8feb3`) were unrelated document/network work
+with incidental references. Earlier helper-name matches concern the predecessor
+2025 company or injected context, not work on this repository. This inventory
+excludes this extraction session and cannot establish coverage of deleted or
+unavailable histories. Repository [decision log][decisions] and reports preserve
+additional evidence; old test counts and live IDs are snapshots, not current
+acceptance criteria.
 
 ## The central open design question: where is the source of truth?
 
@@ -124,8 +324,8 @@ refactor rather than incrementally patching the current five-agent design:
   instructions, instead of tracing a chain of handoffs through several.
 - **Push everything deterministic into scripts, for every agent, not just
   the CTO.** This session's biggest wins were exactly this: dropping sbt
-  re-verification in favor of trusting a committed test (a fact, not a
-  judgment call), making `LAST.md` a plain fact instead of something an
+  re-verification in favor of publication evidence (subject to the trust limits
+  above), making `LAST.md` a record of completion instead of something an
   LLM computes, and moving the "is this accepted" question to a
   deterministic site-status script instead of agent reasoning. Generalize
   that principle to the whole pipeline: gathering official material,
@@ -141,11 +341,12 @@ refactor rather than incrementally patching the current five-agent design:
   discussion above that only Paperclip's own issue store can answer. They
   should not also be the mechanism that decides *what happens next*; that's
   what centralizing in the CTO (plus deterministic scripts) is for.
-- **Only the Solver actually needs to reason.** Gathering official
-  material, verifying/submitting an answer, and reviewing a result are all
+- **Concentrate model reasoning in the Solver.** Gathering official
+  material, verifying/submitting an answer, and checking a result contract are
   candidates for scripting (per above); writing an idiomatic, correct
   solution to a novel puzzle is the one genuinely open-ended, judgment-
-  requiring step in the whole pipeline. Treat agent count as a cost, not a
+  requiring step. Provenance/algorithm assessment and exceptional repair still
+  require a deliberate assessment policy. Treat agent count as a cost, not a
   default — every additional LLM-driven agent is another thing that can be
   woken unexpectedly, another provenance/contract surface, another source
   of nondeterminism.
@@ -153,13 +354,14 @@ refactor rather than incrementally patching the current five-agent design:
   principle above: this session's entire latency bug existed only because a
   live Reviewer agent got woken to "review" work that a deterministic
   check had already verified. The Reviewer's actual responsibilities —
-  validating a result block against the contract, deciding accept/reject,
-  advancing the day-to-part2 handoff — are mechanical enough to fold into a
+  validating a result block against the contract and advancing an authorized
+  day-to-part2 handoff — are mechanical enough to fold into a
   script the CTO runs directly, with no agent (and no wake-on-assignment
   risk, no provenance-contract trap) involved at all. If something
   genuinely needs human-grade judgment about a rejected attempt, that's a
   CTO (or a repair-specific Solver) decision, not a reason to keep a whole
-  review-agent role around for the common case.
+  review-agent role around for the common case. Preserve substantive audit and
+  correctness assessment separately; a schema checker cannot replace those.
 
 ## From the Fargate migration and WatchDog/ModelTester removal
 
@@ -203,9 +405,9 @@ refactor rather than incrementally patching the current five-agent design:
 ## Upstream Paperclip platform bugs and quirks
 
 These are properties of Paperclip itself (`/home/yoda/Development/Home/paperclip`
-locally), not of this package. Re-verify against current Paperclip source if
-upstream has since fixed any of them — don't carry a workaround forever once
-the root cause is gone.
+locally), not of this package. These describe the versions investigated in the
+recorded sessions; their upstream issue status was not refreshed for this edit.
+Re-verify against current Paperclip source before retaining a workaround.
 
 - **Company hard-delete 500s** with FK ordering violations on
   `heartbeat_runs`/`native_run_finalizations`. Confirmed as a known,
@@ -251,8 +453,10 @@ the root cause is gone.
   - Creating an issue already `status: "done"` never wakes the assignee.
   - Creating an issue `status: "todo"` and then PATCHing it to `"done"`
     **does** wake the assignee on the create — the PATCH is too late.
-  - A follow-up PATCH that only adds a comment (status unchanged, already
-    closed) does not re-wake anyone.
+  - The inspected assignment-wakeup path skips closed issues. Do not generalize
+    this to all comment/wakeup paths: an earlier audit comment with
+    `reopen: false` still woke AOC-6 and changed its status. Verify issue status
+    and live runs after an audit write; `reopen: false` is not wake suppression.
   This is exactly why the original reconciliation feature's "create as todo,
   then patch to done" pattern caused a live, multi-minute Solution Reviewer
   run on every reconciled part. If you ever need an agent to NOT run live on
@@ -374,16 +578,17 @@ refactoring this area, they solve different problems:
 Also decided, per explicit design discussion with the user — worth
 preserving the reasoning, not just the outcome:
 
-- **Don't re-run sbt tests to decide "is this already solved."** A committed
-  `DayNN.scala`/`DayNNTest.scala` pair with the real-input test marker
-  already proves a test passed, because the Solver's publish helper
-  (`aoc_solver_publish.py publish`) never lets a commit/push happen
-  otherwise. Re-verifying by running sbt again is redundant JVM/compile cost
-  for a fact already established at commit time.
+- **Keep sbt off the routine reconciliation path when trusted publication
+  evidence exists.** The Solver's publish helper
+  (`aoc_solver_publish.py publish`) enforces tests before publication. Its
+  receipt can establish that fact for the cited commit. File presence and a
+  real-input test marker alone do not establish that every commit used the
+  helper; preserve the evidence boundary described above.
 - **`LAST.md` (a fact) beats a `NEXT.md` (a decision), as the progress
   cursor.** The agent that would write it (Solution Reviewer) is
   LLM-driven, not deterministic. Recording "what we just finished" needs no
-  computation and can't be gotten wrong; computing "what comes next"
+  calendar computation; its write can still be wrong, stale, or lost. Computing
+  "what comes next"
   (including year/day rollover) is exactly the kind of logic that should
   live in one pure, unit-tested function (`next_part()` in
   `aoc_cycle_gate.py`), not be re-derived inline by an LLM on every write.
@@ -497,3 +702,6 @@ preserving the reasoning, not just the outcome:
   `secretValues` — it doesn't send them at all; use the raw import-apply API.
 
 [readme]: README.md
+[workflow-fixes]: reports/2026-11-19-review-workflow-fixes.md
+[audit]: reports/2026-11-19-first-principles-audit.md
+[decisions]: artifacts/decision-log.md
