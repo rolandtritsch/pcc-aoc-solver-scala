@@ -13,6 +13,7 @@ if [ ! -f /workspaces/.ssh-host/ssh_host_ed25519_key ]; then
     ssh-keygen -q -t ed25519 -N '' -f /workspaces/.ssh-host/ssh_host_ed25519_key
 fi
 printf '%s\n' "$AOC_SSH_PUBLIC_KEY" > /etc/ssh/authorized_keys/paperclip
-chmod 644 /etc/ssh/authorized_keys/paperclip
+chmod 600 /etc/ssh/authorized_keys/paperclip
+chown paperclip:paperclip /etc/ssh/authorized_keys/paperclip
 unset AOC_SSH_PUBLIC_KEY
 exec /usr/sbin/sshd -D -e
