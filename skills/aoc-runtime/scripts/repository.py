@@ -40,7 +40,7 @@ class Repository:
         git(self.path, "config", "user.email", "aoc-solver@users.noreply.github.com")
         git(self.path, "config", "credential.https://github.com.helper", "!gh auth git-credential")
         dirty = {line[3:] for line in git(self.path, "status", "--porcelain", "-uall").splitlines()}
-        if dirty and (not allowed_dirty or not dirty <= set(allowed_dirty)):
+        if dirty and (allowed_dirty is None or not all(name in allowed_dirty for name in dirty)):
             raise Blocked("Unexpected dirty checkout preserved; quarantine or reconcile explicitly")
         git(self.path, "fetch", "origin", "main")
         if dirty:
@@ -90,7 +90,7 @@ class Repository:
         def relevant(name):
             if "/problems/" in name or name.endswith("/Main.scala"):
                 return False
-            match = re.search(r"/Day(\d\d)", name)
+            match = re.search(r"/(?:Day|day)(\d\d)(?:[^0-9]|$)", name)
             return not match or int(match[1]) == day
         return {name: digest((self.path / name).read_bytes()) for name in files if relevant(name)}
 
@@ -125,9 +125,12 @@ class Repository:
                     raise Blocked("Unexpected binary file in year template") from None
             if path.name == "aoc0000":
                 path.rename(path.with_name(f"aoc{year}"))
-        output = command(target, ["sbt", "--server", "--batch", "scalafmtAll; compile; testOnly *; run"])
-        if not re.search(r"Passed: Total [1-9]\d*, Failed 0, Errors 0", output) or "Day00 - part1:" not in output:
-            raise Blocked("Year bootstrap did not execute template tests and runner")
+        from publication import check_tests
+        output = command(target, ["sbt", "--server", "--batch",
+            f"scalafmtAll; scalafixAll --check; compile; testOnly aoc{year}.day00.Day00Test; runMain aoc{year}.Main"])
+        check_tests(output, 0)
+        if "Day00 - part1:" not in output:
+            raise Blocked("Year bootstrap did not execute template runner")
         files = [(str(year) + name[len("0000"):]).replace("aoc0000", f"aoc{year}") for name in template_files]
         workflow = self.path / ".github/workflows/ci.yml"
         if not workflow.exists():

@@ -5,13 +5,13 @@ import tempfile
 from pathlib import Path
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path[:0] = [str(ROOT / "operators"), str(ROOT / "skills/aoc-runtime/scripts")]
 from common import Blocked, read_json, write_json, digest
 from company import NAMES, bind, quiesce, verify
-from lifecycle import activate, assert_previous_owner
+from lifecycle import activate, assert_previous_owner, resume_ready
 from infrastructure import Infrastructure
 from package import build, validate
 import aoc
@@ -53,6 +53,8 @@ class CompanyApi:
             return self.routine["triggers"][0]
         if path.startswith("/agents/"):
             key = path.split("/")[2]
+            if method == "GET" and path == "/agents/" + key:
+                return copy.deepcopy(next(a for a in self.agents if a["id"] == key))
             if path.endswith("/instructions-bundle"):
                 return {"resolvedEntryPath": self.configs[key]["adapterConfig"]["instructionsFilePath"]}
             if path.endswith("/pause"):
@@ -68,6 +70,16 @@ class CompanyApi:
 
 
 class OperatorTests(unittest.TestCase):
+    def test_resume_waits_for_real_readiness_before_returning(self):
+        api = Mock()
+        api.request.side_effect = [{"status": "paused"},
+            {"status": "paused", "lifecycleState": "resuming"},
+            {"status": "idle", "lifecycleState": "ready"}]
+        with patch("lifecycle.time.sleep") as sleep:
+            resume_ready(api, "cto")
+        sleep.assert_called_once_with(2)
+        self.assertEqual(api.request.call_args.args, ("GET", "/agents/cto"))
+
     def test_recovery_verification_cannot_pass_before_apply(self):
         infra = Infrastructure(ROOT, "test")
         with self.assertRaises(Blocked):

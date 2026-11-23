@@ -92,9 +92,9 @@ class Contracts(unittest.TestCase):
                 identity(*triple)
 
     def test_zero_tests_and_ambiguous_runner_block(self):
-        output = "aoc2015.Day01Test:\nPassed: Total 2, Failed 0, Errors 0\n[success]\nDay01 - part1: -42"
+        output = "+ Day01\n  + sample\n2 tests passed. 0 tests failed. 0 tests ignored.\n[success]\nDay01 - part1: -42"
         self.assertEqual(check_output(output, 2015, 1, 1, "-42"), "-42")
-        for bad in (output.replace("Total 2", "Total 0"), output + "\nDay01 - part1: -42", output.replace("Day01Test", "Day02Test")):
+        for bad in (output.replace("2 tests passed", "0 tests passed"), output + "\nDay01 - part1: -42", output.replace("+ Day01", "+ Day02")):
             with self.assertRaises(Blocked):
                 check_output(bad, 2015, 1, 1, "-42")
 
@@ -229,6 +229,23 @@ class GitTests(unittest.TestCase):
         with self.assertRaises(Blocked):
             load_progress(repo, "account")
 
+    def test_receipt_hashes_include_assigned_package_and_shared_code_only(self):
+        repo = self.prepare()
+        paths = ["src/main/scala/aoc2015/day01/Part1.scala",
+                 "src/main/scala/aoc2015/day02/Part1.scala",
+                 "src/main/scala/aoc2015/util/AocError.scala",
+                 "src/test/scala/aoc2015/day01/Day01Test.scala",
+                 "src/test/resources/inputs/Day01Invalid.txt",
+                 ".scalafix/FunctionEndMarkers.scala"]
+        for name in paths:
+            path = repo.path / "2015" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("fixture")
+        repo.commit(["2015/" + name for name in paths], "layout fixtures")
+        hashes = repo.hashes(2015, 1)
+        for name in paths:
+            self.assertEqual("2015/" + name in hashes, "/day02/" not in name)
+
     def test_same_attempt_can_resume_only_its_intended_dirty_files(self):
         repo = self.prepare()
         name = "2015/src/main/scala/aoc2015/Day01.scala"
@@ -249,14 +266,14 @@ class GitTests(unittest.TestCase):
         original = repository.command
         def run(cwd, args, timeout=900):
             if args[0] == "sbt":
-                return "Passed: Total 34, Failed 0, Errors 0\nDay00 - part1: 55"
+                return "+ Day00\n34 tests passed. 0 tests failed. 0 tests ignored.\nDay00 - part1: 55"
             return original(cwd, args, timeout)
         with patch("repository.command", side_effect=run):
             repo.bootstrap(2016)
         self.assertEqual((repo.path / "0000/build.sbt").read_bytes(), before)
         self.assertIn('scala3-aoc-2016', (repo.path / "2016/build.sbt").read_text())
         self.assertIn("2016", (repo.path / ".github/workflows/ci.yml").read_text())
-        self.assertTrue((repo.path / "2016/src/main/scala/aoc2016/Day00.scala").is_file())
+        self.assertTrue((repo.path / "2016/src/main/scala/aoc2016/day00/Part1.scala").is_file())
 
     def test_gather_strips_trailing_blank_lines_before_whitespace_check(self):
         repo = self.prepare()
@@ -278,7 +295,7 @@ class GitTests(unittest.TestCase):
         original = repository.command
         def run(cwd, args, timeout=900):
             if args[0] == "sbt":
-                return "Passed: Total 34, Failed 0, Errors 0\nDay00 - part1: 55"
+                return "+ Day00\n34 tests passed. 0 tests failed. 0 tests ignored.\nDay00 - part1: 55"
             return original(cwd, args, timeout)
         with patch("repository.command", side_effect=run):
             result = gather(repo, FakeGatherSite(), {"year": 2016, "day": 5, "part": 1})

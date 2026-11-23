@@ -5,6 +5,7 @@ from pathlib import Path
 from aoc_site import Page, Site, status
 from common import Blocked, command, digest, git
 from repository import ORIGIN
+from publication import check_tests
 
 
 def qualify(api, task, company, agent, root, template=False):
@@ -29,12 +30,13 @@ def qualify(api, task, company, agent, root, template=False):
         if git(checkout, "status", "--porcelain"):
             raise Blocked("Qualification checkout is dirty")
         output = command(checkout / "0000", ["sbt", "--server", "--batch",
-            "clean; compile; testOnly *; scalafmtCheckAll; scalafmtSbtCheck; run"])
+            "clean; compile; testOnly aoc0000.day00.Day00Test; scalafmtCheckAll; scalafmtSbtCheck; scalafixAll --check; runMain aoc0000.Main"])
+        check_tests(output, 0)
         import re
-        if not re.search(r"Passed: Total [1-9]\d*, Failed 0, Errors 0", output) or "Day00 - part1:" not in output:
-            raise Blocked("Actual runtime template did not execute passing tests and runner")
+        if "Day00 - part1:" not in output:
+            raise Blocked("Actual runtime template did not execute runner")
         result["templateTests"] = {"commit": git(checkout, "rev-parse", "HEAD"),
-            "summary": re.findall(r"Passed: Total [^\n]+", output), "outputHash": digest(output.encode())}
+            "summary": re.findall(r"\d+ tests passed\. [^\n]+", output), "outputHash": digest(output.encode())}
     api.put_document(task, "qualification", result)
     api.finish(task, agent, company)
     return result

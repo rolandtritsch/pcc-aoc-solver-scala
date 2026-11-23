@@ -1,9 +1,23 @@
 """Explicit key/environment setup and verified activation/cutover helpers."""
 from urllib.parse import quote
+import time
 
 from common import Blocked, digest, read_json
 from api import Api
 from company import assert_quiet, inventory, verify
+
+
+def resume_ready(api, agent, timeout=180):
+    api.request("POST", f"/agents/{agent}/resume", {})
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        row = api.request("GET", f"/agents/{agent}")
+        if row["status"] == "idle" and row.get("lifecycleState", "ready") == "ready":
+            return
+        if row.get("lifecycleError"):
+            raise Blocked("Agent resume failed; inspect lifecycle state before retrying")
+        time.sleep(2)
+    raise Blocked("Agent is not ready after resume; no qualification task was queued")
 
 
 def credentials(api, company):
@@ -83,7 +97,7 @@ def activate(api, company, qualification):
     state = inventory(api, company)
     for agent in state["agents"]:
         if agent["status"] != "terminated":
-            api.request("POST", f"/agents/{agent['id']}/resume", {})
+            resume_ready(api, agent["id"])
     routine = api.request("GET", "/routines/" + next(r["id"] for r in state["routines"] if r["status"] != "archived"))
     api.request("PATCH", "/routines/" + routine["id"], {"status": "active"})
     api.request("PATCH", "/routine-triggers/" + routine["triggers"][0]["id"], {"enabled": True})

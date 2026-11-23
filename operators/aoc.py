@@ -15,7 +15,7 @@ from api import Api
 from common import Blocked, command, digest, git, now, read_json, write_json
 from company import assert_quiet, bind, inventory, quiesce, verify, sync_instructions, sync_routine
 from infrastructure import Infrastructure
-from lifecycle import activate, archive, credentials, environment, assert_previous_owner
+from lifecycle import activate, archive, credentials, environment, assert_previous_owner, resume_ready
 from cutover import retire_legacy
 from package import build, payload, validate
 from repository import ORIGIN, Repository
@@ -204,11 +204,13 @@ def main(args):
         if args.action in ("probe", "reconcile"):
             state = assert_quiet(api, args.company)
             cto = next(a for a in state["agents"] if a["name"] == "CTO")
+            # Lifecycle commands return before readiness. Queuing against a
+            # still-paused agent immediately blocks the new task.
+            resume_ready(api, cto["id"])
             task = api.request("POST", f"/companies/{args.company}/issues", {
                 "title": "AoC runtime " + args.action, "description": json.dumps({"schema":
                     "aoc-probe-v1" if args.action == "probe" else "aoc-reconcile-v1", "templateTests": True}),
                 "assigneeAgentId": cto["id"], "status": "todo", "idempotencyKey": "aoc-" + args.action + "-" + (args.generation or str(uuid.uuid4()))})
-            api.request("POST", f"/agents/{cto['id']}/resume", {})
             return {"task": task["id"], "agent": cto["id"], "next": "Wait for qualification document, then pause CTO again"}
         if args.action == "archive":
             return archive(api, args.company)

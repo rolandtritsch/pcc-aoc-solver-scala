@@ -1,0 +1,44 @@
+{
+  "companyId": "1f5735e4-3815-4ff1-b782-05b2444288d2",
+  "day7Dispatch": {
+    "decision": {
+      "outcome": "wait",
+      "stage": "gather",
+      "task": "56fcb53e-a76a-42d4-b75e-0f07d2ea9205"
+    },
+    "stageIssue": "AOCA-75",
+    "stageStatus": "done",
+    "verifiedAt": "2026-11-23T18:36:06.286842+00:00"
+  },
+  "manualTriggerIssue": "AOCA-73",
+  "note": "Complete imported ZIO helper release; local implementation changes are uncommitted. Process-local verification reuse requires the identical Git year tree and separately passing assigned-day suites.",
+  "packageHash": "12de284c66fb43cfaa725bbc7987e519c268fc41d4e35ea1cc6d961d4f3313a1",
+  "qualificationTask": "AOCA-70",
+  "reconciliationTask": "AOCA-72",
+  "recordedAt": "2026-11-23T18:34:07.284206+00:00",
+  "schedule": {
+    "cron": "0 6 * * *",
+    "enabled": true,
+    "nextRunAt": "2026-11-24T06:00:00.000Z",
+    "timezone": "UTC"
+  },
+  "schema": 1,
+  "solutionMerge": "0fb6da7fe706073e148b62ee65c2c8eeb52a26a6",
+  "sourceCommit": "6b70227565d572031174cb7096f6c111da7141d8",
+  "sourceDirty": true,
+  "toolsImageDigest": "sha256:21f47849338b13b56a492cb8fb33f7253d817c48fae92819d933676cf67f1087",
+  "validation": {
+    "liveTemplateTests": 11,
+    "local2015Tests": 104,
+    "pythonTests": 63,
+    "reconciledAcceptedParts": 12,
+    "reconciliation": {
+      "nextPart": {
+        "day": 7,
+        "part": 1,
+        "year": 2015
+      },
+      "outcome": "ready"
+    }
+  }
+}

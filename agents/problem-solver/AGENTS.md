@@ -28,3 +28,9 @@ The helper formats, executes assigned-day/full-year tests, checks exact runner
 output, commits allowed files, pushes, verifies remote state, and records the result.
 A successful solve without this publication is incomplete. On failure preserve work
 and record the actual blocker; do not guess another answer or change the workflow.
+
+Follow the solution repository AGENTS.md: use per-day `aocYYYY.dayNN` packages,
+pure part functions, typed ZIO file loading, ZIO tests, and the local Scalafix
+guardrails. Publish the assigned day files, any necessary shared `aocYYYY.util`
+files, its test input resources, and Main.scala explicitly. Do not restore the
+old monolithic DayNN.scala layout or munit tests.
