@@ -100,15 +100,9 @@ agents:
           JAVA_HOME:
             type: plain
             value: /opt/java
-          PAPERCLIP_OPENCODE_PROVIDERS:
+          OPENCODE_ALLOW_ALL_MODELS:
             type: plain
-            value: '{"deepseek": {"npm": "@ai-sdk/openai-compatible", "name": "OpenRouter
-              DeepSeek", "options": {"baseURL": "https://openrouter.ai/api/v1", "apiKey":
-              "{env:OPENROUTER_API_KEY}"}, "models": {"deepseek-v4-pro-0813": {"id":
-              "deepseek/deepseek-v4-pro-0813"}}}}'
-          PAPERCLIP_OPENCODE_SMALL_MODEL:
-            type: plain
-            value: deepseek/deepseek-v4-pro-0813
+            value: 'true'
         timeoutSec: 2100
     inputs:
       env:
