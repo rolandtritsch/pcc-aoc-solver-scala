@@ -88,7 +88,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
-        model: openrouter/deepseek/deepseek-v4-pro-0813
+        model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
         command: /usr/local/bin/aoc-opencode
         env:
           AOC_ROLE:
