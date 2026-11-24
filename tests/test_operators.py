@@ -1,6 +1,7 @@
 import copy
 import importlib.util
 import json
+import re
 import tempfile
 from pathlib import Path
 import sys
@@ -13,6 +14,7 @@ from common import Blocked, read_json, write_json, digest
 from company import NAMES, bind, quiesce, verify
 from lifecycle import activate, assert_previous_owner, resume_ready
 from infrastructure import Infrastructure
+import package
 from package import build, validate
 import aoc
 
@@ -175,6 +177,16 @@ class OperatorTests(unittest.TestCase):
             args.phase = "apply"
             with self.assertRaises(Blocked):
                 aoc.load_or_create(args, {})
+
+
+class ManifestTest(unittest.TestCase):
+    def test_all_agents_use_openrouter_models(self):
+        manifest = package.collect(ROOT)[".paperclip.yaml"]
+        models = re.findall(r"^\s+model:\s*(\S+)\s*$", manifest, re.MULTILINE)
+        self.assertEqual(len(models), len(package.AGENTS))
+        for model in models:
+            with self.subTest(model=model):
+                self.assertTrue(model.startswith("openrouter/"), model)
 
 
 if __name__ == "__main__":
