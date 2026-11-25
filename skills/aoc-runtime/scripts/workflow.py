@@ -9,6 +9,12 @@ from repository import load_progress, save_progress
 from stages import evidence
 
 ROLES = {"gather": "Problem Gatherer", "solve": "Problem Solver", "submit": "Problem Submitter"}
+STAGES = ("gather", "solve", "submit")
+# A generic infra hiccup (lock contention, a flaky API call) is recorded as
+# "blocked" by entry.py's catch-all exception handler; it is not a semantic
+# puzzle outcome like "rejected"/"rate_limited"/"uncertain" and should not
+# need a full daily/manual allow_repair cycle to clear.
+BLOCKED_RETRY_LIMIT = 5
 
 
 def assignment(task):
@@ -103,7 +109,20 @@ class Controller:
     def advance(self, control, spec, rows, allow_repair):
         state, _ = self.api.document(control["id"], "state")
         state = state or {"part": spec["part"], "attempt": 0}
-        if state.get("outcome") in ("rejected", "blocked", "rate_limited", "uncertain"):
+        if state.get("outcome") == "blocked":
+            retries = state.get("blockedRetries", 0)
+            if retries >= BLOCKED_RETRY_LIMIT and not allow_repair:
+                return {"outcome": "wait", "reason": "blocked"}
+            # Retry just the stage that hit the transient failure (not the
+            # whole day from "gather") and do not require allow_repair: a
+            # lock/API hiccup is not a semantic puzzle rejection, so it
+            # should self-heal on the next continuation ping within a few
+            # minutes, not wait for the next daily/manual check.
+            state = {"part": state["part"], "attempt": state["attempt"] + 1,
+                "start": state.get("failedStage", "gather"),
+                "blockedRetries": 0 if allow_repair else retries + 1}
+            self.api.put_document(control["id"], "state", state)
+        elif state.get("outcome") in ("rejected", "rate_limited", "uncertain"):
             if not allow_repair:
                 return {"outcome": "wait", "reason": state["outcome"]}
             if state["outcome"] == "uncertain":
@@ -122,8 +141,9 @@ class Controller:
             self.api.put_document(control["id"], "state", state)
         agents = self.api.request("GET", f"/companies/{self.company}/agents")
         by_name = {a["name"]: a["id"] for a in agents if a["status"] != "terminated"}
-        for stage in ("gather", "solve", "submit"):
-            if state.get("start") == "submit" and stage != "submit":
+        start_index = STAGES.index(state["start"]) if state.get("start") in STAGES else 0
+        for index, stage in enumerate(STAGES):
+            if index < start_index:
                 continue
             if stage == "solve" and finale(spec["year"], spec["day"], state["part"]):
                 continue
@@ -143,6 +163,8 @@ class Controller:
                         answers.append(result["receipt"]["answer"])
                     self.api.put_document(control["id"], "rejections", rejections)
                 state["outcome"] = result["outcome"]
+                if result["outcome"] == "blocked":
+                    state["failedStage"] = stage
                 self.api.put_document(control["id"], "state", state)
                 return {"outcome": "wait", "reason": result["outcome"]}
             if child["status"] != "done":

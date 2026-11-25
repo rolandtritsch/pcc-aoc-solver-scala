@@ -111,9 +111,31 @@ class Contracts(unittest.TestCase):
     def test_runtime_lock_refuses_concurrent_mutation(self):
         with tempfile.TemporaryDirectory() as root:
             with lock(root):
-                with self.assertRaises(Blocked):
-                    with lock(root):
-                        pass
+                with patch("common.time.sleep"):
+                    with self.assertRaises(Blocked):
+                        with lock(root):
+                            pass
+
+    def test_runtime_lock_retries_through_brief_contention(self):
+        # Two of this company's own agents can briefly overlap on the shared
+        # workspace lock; a short-lived collision should self-clear instead
+        # of failing on the very first attempt.
+        import fcntl as fcntl_module
+        attempts = []
+        real_flock = fcntl_module.flock
+
+        def flaky(handle, operation):
+            if operation & fcntl_module.LOCK_NB:
+                attempts.append(1)
+                if len(attempts) < 3:
+                    raise BlockingIOError()
+            return real_flock(handle, operation)
+
+        with tempfile.TemporaryDirectory() as root:
+            with patch("common.fcntl.flock", side_effect=flaky), patch("common.time.sleep"):
+                with lock(root):
+                    pass
+        self.assertEqual(len(attempts), 3)
 
 
 class Packages(unittest.TestCase):

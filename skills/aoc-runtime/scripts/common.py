@@ -6,9 +6,11 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import random
 import subprocess
 import signal
 import tempfile
+import time
 import re
 
 
@@ -102,13 +104,22 @@ def finale(year, day, part):
     return day == days(year) and part == 2
 
 
+LOCK_ATTEMPTS = 6
+
+
 @contextlib.contextmanager
 def lock(root):
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     with open(root / ".mutation.lock", "a") as handle:
-        try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise Blocked("Another company mutation is active; retry later") from error
+        for attempt in range(LOCK_ATTEMPTS):
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError as error:
+                if attempt == LOCK_ATTEMPTS - 1:
+                    raise Blocked("Another company mutation is active; retry later") from error
+                # This company's own agents run short mutations; a brief
+                # overlap should self-clear well within this bounded wait.
+                time.sleep(attempt + random.uniform(0, 0.5))
         yield

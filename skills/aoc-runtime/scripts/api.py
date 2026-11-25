@@ -37,11 +37,14 @@ class Api:
         return cls(os.environ.get("AOC_PAPERCLIP_API_URL") or os.environ["PAPERCLIP_API_URL"],
                    os.environ["AOC_PAPERCLIP_API_KEY"], os.environ["PAPERCLIP_RUN_ID"])
 
+    RETRYABLE_STATUS = (429, 502, 503, 504)
+    ATTEMPTS = 3
+
     def request(self, method, path, body=None):
         headers = {"Authorization": "Bearer " + self.token, "Content-Type": "application/json"}
         if self.run_id:
             headers["X-Paperclip-Run-Id"] = self.run_id
-        for attempt in range(3 if method == "GET" else 1):
+        for attempt in range(self.ATTEMPTS):
             request = urllib.request.Request(self.base + "/api" + path, method=method,
                 headers=headers, data=None if body is None else json.dumps(body).encode())
             try:
@@ -49,7 +52,11 @@ class Api:
                     raw = response.read(16 * 1024 * 1024)
                     return json.loads(raw) if raw else None
             except urllib.error.HTTPError as error:
-                if method == "GET" and error.code in (429, 502, 503, 504) and attempt < 2:
+                # Any method may hit a transient server-side failure; the
+                # status code itself (not the verb) says whether the server
+                # actually processed the request, so this is safe to retry
+                # even for a mutating PATCH/PUT/POST.
+                if error.code in self.RETRYABLE_STATUS and attempt < self.ATTEMPTS - 1:
                     time.sleep(2 ** attempt)
                     continue
                 if method == "GET" and error.code == 404:
@@ -59,7 +66,7 @@ class Api:
                     diagnostic = out.name
                 raise Blocked(f"Paperclip {method} {path}: HTTP {error.code}; private diagnostic {diagnostic}") from None
             except (urllib.error.URLError, TimeoutError):
-                if method == "GET" and attempt < 2:
+                if method == "GET" and attempt < self.ATTEMPTS - 1:
                     time.sleep(2 ** attempt)
                     continue
                 raise Blocked(f"Paperclip {method} {path}: transport uncertainty; read back before retry") from None

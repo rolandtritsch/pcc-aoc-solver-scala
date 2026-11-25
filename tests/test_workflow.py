@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills/aoc-runtime/scripts"))
 from common import Blocked, lock
-from workflow import Controller, assignment, complete_stage, stage_notifier
+from workflow import BLOCKED_RETRY_LIMIT, Controller, assignment, complete_stage, stage_notifier
 
 
 class Api:
@@ -131,6 +131,49 @@ class WorkflowTests(unittest.TestCase):
         self.advance(repair=True)
         self.assertEqual(assignment(self.child("gather", attempt=1))["attempt"], 1)
         self.assertEqual(self.api.docs[self.control["id"], "rejections"], {"1": ["42"]})
+
+    def test_blocked_specialist_retries_same_stage_without_redoing_earlier_ones(self):
+        self.advance()
+        self.complete(self.child("gather"), "gathered")
+        self.advance()
+        # entry.py's catch-all handler records a transient infra failure
+        # (lock contention, a flaky API call) generically as "blocked" --
+        # this is not a semantic puzzle rejection.
+        self.complete(self.child("solve"), "blocked", reason="Another company mutation is active; retry later")
+        result = self.advance()
+        self.assertEqual(result["reason"], "blocked")
+        gather_attempts_before = {assignment(r)["attempt"] for r in self.api.rows.values()
+            if (a := assignment(r)) and a["stage"] == "gather"}
+        # A later continuation (no repair) must self-heal: it retries only
+        # the stage that failed, not the whole day from "gather", and it
+        # does not need allow_repair=True / the next daily cycle.
+        result = self.advance()
+        self.assertEqual(result["stage"], "solve")
+        gather_attempts_after = {assignment(r)["attempt"] for r in self.api.rows.values()
+            if (a := assignment(r)) and a["stage"] == "gather"}
+        self.assertEqual(gather_attempts_before, gather_attempts_after)
+        self.assertEqual(assignment(self.child("solve", attempt=1))["attempt"], 1)
+
+    def test_blocked_specialist_eventually_waits_for_repair(self):
+        self.advance()
+        self.complete(self.child("gather"), "gathered")
+        self.advance()  # dispatches solve, attempt 0
+        self.complete(self.child("solve", attempt=0), "blocked", reason="transient")
+        result = self.advance()  # detects it, records state.outcome=blocked
+        self.assertEqual(result["reason"], "blocked")
+        for attempt in range(1, BLOCKED_RETRY_LIMIT + 1):
+            result = self.advance()  # consumes one retry, dispatches a fresh attempt
+            self.assertEqual(result["stage"], "solve")
+            self.complete(self.child("solve", attempt=attempt), "blocked", reason="transient")
+            result = self.advance()  # detects it again
+            self.assertEqual(result["reason"], "blocked")
+        # Once the bounded self-healing budget is exhausted, it parks the
+        # day for a real daily/manual repair instead of retrying forever.
+        before = len(self.api.rows)
+        result = self.advance()
+        self.assertEqual(result["outcome"], "wait")
+        self.assertEqual(result["reason"], "blocked")
+        self.assertEqual(len(self.api.rows), before)
 
     def test_uncertain_submission_never_auto_repairs(self):
         self.api.put_document(self.control["id"], "state", {"part": 1, "attempt": 0, "outcome": "uncertain"})

@@ -170,14 +170,26 @@ def main():
     try:
         return run(sys.argv[1:])
     except Blocked as error:
-        if os.environ.get("AOC_ROLE") != "cto":
-            try:
-                api, task, row, spec, owner, root = runtime_context()
-                if spec:
-                    existing, _ = api.document(task, "result")
-                    complete_stage(api, task, spec, existing or {"outcome": "blocked", "reason": str(error)})
-            except Exception:
-                pass  # Keep the original failure visible; task remains recoverable.
+        try:
+            api, task, row, spec, owner, root = runtime_context()
+            if spec and os.environ.get("AOC_ROLE") != "cto":
+                existing, _ = api.document(task, "result")
+                complete_stage(api, task, spec, existing or {"outcome": "blocked", "reason": str(error)})
+            elif spec and spec.get("stage") == "control":
+                # CTO itself hit a transient failure (e.g. the mutation lock
+                # or an API call exhausted its own retries). Leave a
+                # breadcrumb on the control issue's state so the next
+                # continuation retries the same stage instead of Paperclip's
+                # platform-level retry re-dispatching with no record of what
+                # already happened. Never downgrade a genuine semantic
+                # outcome (rejected/rate_limited/uncertain) that a prior,
+                # successful run already recorded.
+                state, _ = api.document(task, "state")
+                state = state or {"part": spec["part"], "attempt": 0}
+                if state.get("outcome") not in ("rejected", "rate_limited", "uncertain"):
+                    api.put_document(task, "state", {**state, "outcome": "blocked"})
+        except Exception:
+            pass  # Keep the original failure visible; task remains recoverable.
         print(json.dumps({"type": "text", "part": {"type": "text", "text": str(error)}}))
         return 2
 
