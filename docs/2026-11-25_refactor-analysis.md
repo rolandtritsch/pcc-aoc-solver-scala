@@ -440,6 +440,45 @@ commitment.
 
 ---
 
+## Implementation status — 2026-11-25
+
+Option A is implemented and live. `aoc_state.py`/`aoc_repair.py` exist as
+real, tested modules; `Controller.select()` calls `next_unsolved()` for
+every reconciliation decision (not a parallel/unused abstraction); a fresh
+company is deployed with its `daily-selection` routine renamed/retimed to
+an hourly reconcile tick (`0 * * * * UTC`, still paused pending explicit
+enablement). 104 tests pass, `compileall` clean.
+
+Closed against the non-negotiables above:
+- State repair is first-class: every `select()` call re-derives truth from
+  repo + site, self-healing drift (a real `LAST.md`/`progress.json`
+  discrepancy in `scala3-aoc` was used as a live fixture) with no special
+  repair step.
+- No blind resubmission: an existing candidate is verified and submitted
+  directly when found, skipping `gather`/`solve`; a rejection is tracked by
+  the pre-existing generic rejection path, proven by test.
+- Nothing writes `.aoc/progress.json` outside the sanctioned projector —
+  enforced by a structural test, not just convention.
+- Lease/fencing and racing-instances risks closed against real `sbt`
+  builds and real OS-process contention (50/50 trials), not simulation.
+
+Deliberately descoped, with reasoning recorded rather than silently
+dropped:
+- The `.aoc/events/`/`.aoc/receipts/`/`.aoc/state/` schema in the shared
+  design above was written for the event-sourced options (B/C). Option A's
+  entire value proposition is *not* needing an event log; `progress.json`
+  with inline receipts already is its canonical store. Building the
+  separate schema would be unused ceremony for the option actually chosen.
+- Adapter-contract/chaos tests are done at local scope only (real git
+  fixture repos, canned site responses) — a real staging Paperclip company
+  and live AoC traffic were deliberately deferred rather than stood up
+  speculatively; add them if the local-scope tests stop being sufficient.
+- `aoc_repair.repair()` (the lease-fenced full-calendar rescan) has no
+  production caller yet — a reasonable operator-recovery follow-up, not
+  required for the hourly per-tick path.
+
+---
+
 ## Key sources
 
 - [Temporal self-hosted deployment guide][temporal-deploy]
