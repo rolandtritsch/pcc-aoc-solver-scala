@@ -1,6 +1,6 @@
-"""Tests for aoc_repair.py's next_unsolved()/repair(), using a temp directory
-shaped like scala3-aoc instead of the real repo, and fakes for site/repo
-matching tests/test_workflow.py's conventions (hand-rolled, not mocks)."""
+"""Tests for aoc_repair.py's next_unsolved(), using a temp directory shaped
+like scala3-aoc instead of the real repo, and fakes for site/repo matching
+tests/test_workflow.py's conventions (hand-rolled, not mocks)."""
 import json
 import sys
 import tempfile
@@ -9,8 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills/aoc-runtime/scripts"))
 
-from aoc_repair import next_unsolved, repair  # noqa: E402
-from aoc_state import LeaseError  # noqa: E402
+from aoc_repair import next_unsolved  # noqa: E402
 
 
 def make_day(root, year, day, parts=(1, 2)):
@@ -92,49 +91,6 @@ class NextUnsolvedTests(unittest.TestCase):
         first = next_unsolved(self.repo, self.site)
         second = next_unsolved(self.repo, self.site)
         self.assertEqual(first, second)
-
-
-class RepairTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = self.tmp.name
-        self.lease_dir = str(Path(self.tmp.name) / "leases")
-        self.site = FakeSite()
-        self.repo = FakeRepo(self.root)
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def write_progress(self, parts):
-        aoc_dir = Path(self.root) / ".aoc"
-        aoc_dir.mkdir(parents=True, exist_ok=True)
-        (aoc_dir / "progress.json").write_text(json.dumps(
-            {"schema": 1, "account": self.site.account, "parts": parts}))
-
-    def test_repair_syncs_repo_and_returns_next_candidate(self):
-        make_day(self.root, 2015, 1)
-        self.write_progress({})
-        result = repair(self.repo, self.site, self.lease_dir, owner="test-owner")
-        self.assertTrue(self.repo.synced)
-        self.assertEqual(result["outcome"], "candidate")
-        self.assertEqual((result["year"], result["day"], result["part"]), (2015, 1, 1))
-        self.assertIn("fence_token", result)
-
-    def test_repair_releases_lease_so_a_second_call_can_acquire(self):
-        self.write_progress({})
-        repair(self.repo, self.site, self.lease_dir, owner="owner-a")
-        # Must not raise: the first call released its lease on return.
-        repair(self.repo, self.site, self.lease_dir, owner="owner-b")
-
-    def test_concurrent_repair_is_denied_while_one_is_held(self):
-        from aoc_state import FileLeaseStore
-        held = FileLeaseStore(self.lease_dir, "repair")
-        held.acquire("blocker", ttl=60)
-        try:
-            with self.assertRaises(LeaseError):
-                repair(self.repo, self.site, self.lease_dir, owner="other")
-        finally:
-            held.release()
 
 
 if __name__ == "__main__":

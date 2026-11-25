@@ -10,7 +10,7 @@ reconciliation decision lives here, with its own test suite.
 """
 from pathlib import Path
 
-from aoc_state import CANDIDATE_PRESENT, FileLeaseStore, reconcile
+from aoc_state import reconcile
 from common import Blocked, calendar, finale, identity
 from publication import verify
 from repository import load_progress, save_progress
@@ -62,25 +62,3 @@ def next_unsolved(repo, site):
         has_code = candidate_present(repo.path, year, day, part)
         return year, day, part, reconcile(has_code, None, None)
     return None
-
-
-def repair(repo, site, lease_dir, owner, ttl=120):
-    """First-class repair procedure: acquire a fenced lease over the whole
-    calendar, resync the repo, and return the next part to work plus its
-    reconciled state. Raises Blocked if another owner already holds repair.
-    """
-    store = FileLeaseStore(lease_dir, "repair")
-    lease = store.acquire(owner, ttl)
-    try:
-        repo.sync()
-        result = next_unsolved(repo, site)
-        if result is None:
-            return {"outcome": "complete", "parts": len(calendar())}
-        year, day, part, state = result
-        if state == CANDIDATE_PRESENT:
-            return {"outcome": "candidate", "year": year, "day": day, "part": part,
-                    "fence_token": lease.fence_token}
-        return {"outcome": "ready", "year": year, "day": day, "part": part,
-                "fence_token": lease.fence_token}
-    finally:
-        store.release()

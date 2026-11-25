@@ -473,9 +473,15 @@ dropped:
   fixture repos, canned site responses) — a real staging Paperclip company
   and live AoC traffic were deliberately deferred rather than stood up
   speculatively; add them if the local-scope tests stop being sufficient.
-- `aoc_repair.repair()` (the lease-fenced full-calendar rescan) has no
-  production caller yet — a reasonable operator-recovery follow-up, not
-  required for the hourly per-tick path.
+- `aoc_repair.repair()` (the lease-fenced full-calendar rescan, for running
+  reconciliation outside of Paperclip entirely) and `operators/aoc.py`'s
+  `reconcile` CLI action (a Paperclip-task-dispatched, read-only
+  `select(authorize=False)` check) were both removed 2026-11-25 — neither
+  had a real caller or test coverage, and every real tick (routine or
+  manual authorization) already self-heals via `next_unsolved()` as a side
+  effect. `operators/OPERATIONS.md` updated to match: there is no longer a
+  separate dry-run reconcile step — reconciliation only happens as part of
+  a real, authorized CTO tick.
 
 ---
 

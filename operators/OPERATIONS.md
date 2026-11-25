@@ -54,8 +54,13 @@ Use `probe apply --company COMPANY --generation UNIQUE_PROBE_ID` for a dedicated
 read-only qualification task. It checks imported code, account identity, GitHub
 push permission, and real template tests; it never authorizes a puzzle. Wait for
 its `qualification` document and pause CTO again before further maintenance.
-`reconcile apply` similarly verifies historical accepted parts, publishes progress,
-and stops at the first unsolved part without authorizing it.
+
+There is no separate dry-run reconcile action. Reconciliation against the repo
+and the authenticated site (self-healing `progress.json` drift, revalidating
+historical receipts) happens automatically, as a side effect, on every real
+authorized CTO tick (`aoc_repair.next_unsolved()`, called from
+`Controller.select()`) -- whether that tick comes from the routine or a manual
+authorization. There is no way to run it read-only outside of a real tick.
 
 Before cutover, verify the actual tools image supports launcher v1, pin SSH
 host identity from authenticated ECS Exec, probe the environment, inspect

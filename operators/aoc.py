@@ -23,7 +23,7 @@ from repository import ORIGIN, Repository
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=("diagnose", "package", "deploy", "replace", "bind", "tools", "recover", "bootstrap", "own", "install", "credentials", "environment", "activate", "archive", "retire", "probe", "reconcile"))
+    p.add_argument("action", choices=("diagnose", "package", "deploy", "replace", "bind", "tools", "recover", "bootstrap", "own", "install", "credentials", "environment", "activate", "archive", "retire", "probe"))
     p.add_argument("phase", nargs="?", choices=("plan", "apply", "verify"), default="plan")
     p.add_argument("--company")
     p.add_argument("--name")
@@ -192,7 +192,7 @@ def main(args):
             "routines": state["routines"], "liveRuns": len(state["liveRuns"])}
     if args.action in ("deploy", "replace"):
         return imports(args, api)
-    if args.action in ("credentials", "environment", "activate", "archive", "retire", "probe", "reconcile"):
+    if args.action in ("credentials", "environment", "activate", "archive", "retire", "probe"):
         if not args.company:
             raise Blocked("Explicit company identity required")
         if args.phase != "apply":
@@ -201,16 +201,16 @@ def main(args):
             return credentials(api, args.company)
         if args.action == "retire":
             return retire_legacy(api, args.company)
-        if args.action in ("probe", "reconcile"):
+        if args.action == "probe":
             state = assert_quiet(api, args.company)
             cto = next(a for a in state["agents"] if a["name"] == "CTO")
             # Lifecycle commands return before readiness. Queuing against a
             # still-paused agent immediately blocks the new task.
             resume_ready(api, cto["id"])
             task = api.request("POST", f"/companies/{args.company}/issues", {
-                "title": "AoC runtime " + args.action, "description": json.dumps({"schema":
-                    "aoc-probe-v1" if args.action == "probe" else "aoc-reconcile-v1", "templateTests": True}),
-                "assigneeAgentId": cto["id"], "status": "todo", "idempotencyKey": "aoc-" + args.action + "-" + (args.generation or str(uuid.uuid4()))})
+                "title": "AoC runtime probe", "description": json.dumps({"schema":
+                    "aoc-probe-v1", "templateTests": True}),
+                "assigneeAgentId": cto["id"], "status": "todo", "idempotencyKey": "aoc-probe-" + (args.generation or str(uuid.uuid4()))})
             return {"task": task["id"], "agent": cto["id"], "next": "Wait for qualification document, then pause CTO again"}
         if args.action == "archive":
             return archive(api, args.company)
@@ -329,7 +329,9 @@ def infrastructure(args, api):
         commit = repo.commit([".aoc/progress.json"], "Reconstruct AoC progress from Git and site evidence")
         record["steps"]["progressCommit"] = commit
         write_json(args.record, record)
-        return {"commit": commit, "next": "Run an explicit CTO check to verify and reconcile historical parts"}
+        return {"commit": commit, "next": "The next authorized CTO tick (routine or manual) "
+            "self-heals progress.json automatically via next_unsolved() -- no separate "
+            "reconcile step exists; fire that tick when ready"}
     if plan["scope"] in ("instance", "database", "controller-efs") and not plan["backup"]:
         raise Blocked("Paired database/master-key backup reference required before instance reset")
     keys = {"runtime-efs": ["aoc_runtime_data_generation"], "controller-efs": ["controller_data_generation"],

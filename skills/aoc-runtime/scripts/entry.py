@@ -93,12 +93,7 @@ def run(args):
             # An authorization task can only continue; routine/manual tasks select.
             controller = Controller(api, repo, site, owner["company"], owner["generation"],
                 os.environ["PAPERCLIP_AGENT_ID"])
-            if isinstance(probe, dict) and probe.get("schema") == "aoc-reconcile-v1":
-                result = controller.select(task, authorize=False)
-                api.put_document(task, "reconciliation", result)
-                api.finish(task, os.environ["PAPERCLIP_AGENT_ID"], owner["company"])
-            else:
-                result = controller.run(task, select=spec is None)
+            result = controller.run(task, select=spec is None)
         else:
             if not spec or spec["stage"] != {"problem-gatherer": "gather",
                     "problem-solver": "solve", "problem-submitter": "submit"}[os.environ["AOC_ROLE"]]:
