@@ -23,6 +23,37 @@ Run every command from the repo root (`pcc-aoc-solver-scala/`). Every
 destructive/mutating action below is plan-then-apply: run `plan` first, read
 the output, then `apply` with the same `--record` path.
 
+## 0. Redeploying to an already-live company: check for a running agent first
+
+`deploy apply` on an existing company always calls `quiesce()` first, which
+pauses every agent. `operators/company.py`'s `quiesce()` now refuses to pause
+an agent whose `status` is `"running"` — it waits for it to go idle on its
+own (bounded by `timeout`, default 30 min) instead. **Do not work around this
+by shortening the timeout or pausing agents manually first.** Pausing an
+agent mid-run cancels that run, and on an SSH/remote environment the
+cancelled run's lease never gets a termination receipt — Paperclip's own
+stop-check can then never prove the remote process died, and the agent gets
+stuck in `lifecycleState: pausing` **forever**, with no known API/CLI lever
+to clear it (see AGENTS.md's "stuck in pausing" note; upstream
+paperclipai/paperclip#16346, open PR #20766 not yet merged).
+
+Before running `deploy apply` against a live company, check first:
+
+```python
+import sys; sys.path.insert(0, "skills/aoc-runtime/scripts")
+from api import Api
+api = Api.local()
+for a in api.request("GET", f"/companies/{COMPANY_ID}/agents"):
+    print(a["id"], a["name"], a["status"])
+```
+
+If the Solver shows `"running"`, it's mid-way through an sbt/model cycle
+that can legitimately take 10-15+ minutes — just wait (or let `quiesce()`'s
+own wait loop do it) rather than forcing a pause. If an agent is stuck in
+`"pausing"` from a **previous** incident, `quiesce()`'s wait loop will not
+help (it's not "running", it's already stuck) — see the Troubleshooting
+section at the bottom before doing anything else with that agent.
+
 ## 1. New company, fresh deploy
 
 ```bash
@@ -228,6 +259,47 @@ re-walked: (1) a brittle exact-byte stdin comparison in `runtime/launch.py`
 (fixed anyway, real bug, just not *this* bug — see
 `deploy-aoc-runtime-image`'s notes); (2) suspecting `OPENROUTER_API_KEY`
 was needed on all four roles (it isn't — see the secrets section above).
+
+## Troubleshooting: agent stuck in `lifecycleState: pausing` forever
+
+This is **upstream paperclipai/paperclip#16346** ("Pause never completes for
+agents with a cancelled run on an SSH environment"), confirmed by many
+independent reporters on the issue, plus duplicates #17803, #21154, #20801,
+#22296, #18993, #17718, #20415, #16734. There is an open fix PR, **#20766**,
+not yet merged (shows merge conflicts against master as of 2026-11-25) — no
+ETA. Do not wait for it; this will keep happening until it lands.
+
+**Mechanism**: pausing an agent cancels its in-flight run. For a non-local
+(SSH) lease, Paperclip's `agentExecutionsHaveStopped`
+(`server/src/services/agent-execution-stop.ts`) requires a "remote
+termination receipt" proving the remote process died before it'll consider
+the run stopped — but the SSH driver's `releaseRunLease` never writes one.
+So any agent with even one cancelled SSH run in its *entire history* can
+never finish pausing; `resume`, `lifecycle/retry`, and a server restart all
+no-op.
+
+**Prevention** (do this, not the repair): never pause a `"running"` agent.
+`operators/company.py`'s `quiesce()` already enforces this — it waits for
+`"running"` to clear before issuing pause, instead of cancelling the run.
+If you're ever tempted to bypass that (shorten the timeout, pause via the
+API directly, `paperclipai agent pause` by hand), don't — that's exactly
+how this gets triggered.
+
+**If it's already stuck** (pre-existing from before this safeguard, or
+triggered some other way — e.g. a Board comment interrupting a run, an
+issue reassignment, a budget hard-stop): confirmed NOT to help —
+`paperclipai agent runtime-state:reset-session` (only clears client-side
+session tracking), `heartbeat:invoke` (409s on a paused agent), re-issuing
+`pause` (no-op). No CLI/API lever was found that forces it to clear.
+Workaround used across every report on #16346: independently verify the
+remote process is truly gone (`aws ecs execute-command ... ps aux` on the
+SSH host — look for an orphaned process, not necessarily the exact
+opencode/python one; our incident left a detached `sbt` server), then
+either get direct DB access to the Paperclip instance to manually write the
+termination receipt (needs an operator with that access; not available via
+the CLI/API we use) or orphan the stuck agent (leave it
+terminated-but-undeleted) and create a replacement. Don't burn time trying
+to force it through the transition any other way.
 
 ## Key IDs from 2026-11-25 (may be stale — verify before reusing)
 

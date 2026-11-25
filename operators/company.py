@@ -1,6 +1,7 @@
 """Board-only maintenance and declarative runtime bindings."""
 import json
 from pathlib import Path
+import time
 
 from common import Blocked
 from package import AGENTS
@@ -15,14 +16,32 @@ def inventory(api, company):
         "liveRuns": api.request("GET", f"/companies/{company}/live-runs")}
 
 
-def quiesce(api, company):
+def quiesce(api, company, timeout=1800, poll=10):
     state = inventory(api, company)
     for routine in state["routines"]:
         for trigger in routine.get("triggers", []):
             api.request("PATCH", "/routine-triggers/" + trigger["id"], {"enabled": False})
         if routine["status"] != "archived":
             api.request("PATCH", "/routines/" + routine["id"], {"status": "paused"})
+    deadline = time.monotonic() + timeout
     for agent in state["agents"]:
+        if agent["status"] == "terminated":
+            continue
+        # Pausing an agent mid-run cancels that run; on an SSH/remote
+        # environment the cancelled run's lease gets no termination receipt,
+        # and Paperclip's own stop-check can then never prove the remote
+        # process died -- the agent is stuck in lifecycleState "pausing"
+        # forever, with no API/CLI lever to clear it (upstream paperclipai/
+        # paperclip#16346, unfixed as of 2026-11-25: PR #20766 open but not
+        # merged). Never pause a "running" agent; wait for it to go idle on
+        # its own first, even if that means waiting out a long Solver run.
+        while agent["status"] == "running":
+            if time.monotonic() > deadline:
+                raise Blocked("Agent still running after the wait timeout; "
+                    "pausing it now would risk an unrecoverable stuck lifecycle "
+                    "(see AGENTS.md's stuck-pausing note) -- wait longer or retry later")
+            time.sleep(poll)
+            agent = api.request("GET", "/agents/" + agent["id"])
         if agent["status"] not in ("paused", "terminated"):
             api.request("POST", f"/agents/{agent['id']}/pause", {})
     assert_quiet(api, company)

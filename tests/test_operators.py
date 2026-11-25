@@ -162,6 +162,36 @@ class OperatorTests(unittest.TestCase):
         self.assertEqual(writes[0], "/routine-triggers/trigger")
         self.assertEqual(api.agents[0]["status"], "paused")
 
+    def test_quiesce_waits_for_a_running_agent_instead_of_cancelling_it(self):
+        # Pausing a "running" agent cancels its run; on an SSH environment
+        # that leaves an unrecoverable stuck lifecycle (paperclipai/
+        # paperclip#16346). quiesce() must wait for it to finish on its own,
+        # never pause while status is still "running".
+        api = CompanyApi()
+        api.agents[0]["status"] = "running"
+        calls = {"n": 0}
+
+        def flip_to_idle(method, path, body=None):
+            if method == "GET" and path == "/agents/" + api.agents[0]["id"]:
+                calls["n"] += 1
+                if calls["n"] >= 2:
+                    api.agents[0]["status"] = "idle"
+            return CompanyApi.request(api, method, path, body)
+
+        with patch.object(api, "request", side_effect=flip_to_idle), \
+                patch("company.time.sleep"):
+            quiesce(api, "company", timeout=100, poll=1)
+        self.assertEqual(api.agents[0]["status"], "paused")
+        self.assertGreaterEqual(calls["n"], 2)
+
+    def test_quiesce_refuses_to_pause_a_running_agent_past_the_timeout(self):
+        api = CompanyApi()
+        api.agents[0]["status"] = "running"
+        with patch("company.time.sleep"), self.assertRaises(Blocked):
+            quiesce(api, "company", timeout=0, poll=1)
+        self.assertEqual(api.agents[0]["status"], "running")
+        self.assertFalse(any(path.endswith("/pause") for _, path, _ in api.calls))
+
     def test_missing_bindings_block_activation(self):
         api = CompanyApi()
         with self.assertRaises(Blocked):
