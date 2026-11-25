@@ -10,8 +10,13 @@ import sys
 LAUNCHER = 1
 
 
-def resolve_release(cwd, expected):
-    roots = list((Path(cwd) / ".paperclip-runtime/opencode/skills").glob("*/release.json"))
+def resolve_release(skills_root, expected):
+    # Skills materialize under the OS user's home directory
+    # (~/.claude/skills/<slug>--<hash>/release.json), never relative to the
+    # agent's working directory -- confirmed directly on the running
+    # container 2026-11-25. Callers pass Path.home() / ".claude/skills" in
+    # production; tests pass an isolated temp directory with the same shape.
+    roots = list(Path(skills_root).glob("*/release.json"))
     candidates = []
     for path in roots:
         manifest = json.loads(path.read_text())
@@ -45,7 +50,7 @@ def main():
             print(json.dumps({"type": "text", "part": {"type": "text", "text": "hello"}}))
             return 0
         return subprocess.run(["/usr/local/bin/opencode", *args], input=prompt, text=True).returncode
-    root = resolve_release(Path.cwd(), os.environ["AOC_RELEASE"])
+    root = resolve_release(Path.home() / ".claude/skills", os.environ["AOC_RELEASE"])
     os.environ["AOC_RUNTIME_DIR"] = str(root)
     os.execv(sys.executable, [sys.executable, str(root / "scripts/entry.py"), *args])
 

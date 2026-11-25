@@ -133,18 +133,24 @@ class OperatorTests(unittest.TestCase):
             self.assertEqual(config["adapterConfig"]["cwd"], f"/paperclip/instructions/{key}")
         self.assertNotIn("AOC_SESSION", api.configs["problem-solver"]["adapterConfig"]["env"])
 
-    def test_bind_uses_remote_workspace_as_cwd_on_an_ssh_environment(self):
-        # Root cause of the 2026-11-25 "unclassified" agent-lifecycle-
-        # verification failure: cwd pointed at the Paperclip server's own
-        # local instructions-bundle path, which doesn't exist on a remote
-        # SSH-executed agent's host and can't be created there (permission
-        # denied at /). cwd must be the environment's own remote workspace.
+    def test_bind_clears_cwd_on_an_ssh_environment(self):
+        # Root cause of two real 2026-11-25 incidents, same field, two
+        # opposite fixes needed depending on which Paperclip subsystem reads
+        # it: a literal local path (/paperclip/instances/...) fails remote
+        # execution (EACCES on the remote host, surfaced as a generic
+        # "unclassified" lifecycle-verification failure); a literal remote
+        # path (/workspaces/agents) fails the Paperclip SERVER's own
+        # heartbeat/anchor-workspace setup (EACCES mkdir '/workspaces' on
+        # the server itself). Clearing cwd (empty string, not omitted --
+        # PATCH merges adapterConfig rather than replacing it, so omitting
+        # the key would leave a stale value in place) lets each subsystem
+        # apply its own correct, independent default instead.
         api = CompanyApi()
         api.environment = {"id": "environment", "driver": "ssh",
             "config": {"remoteWorkspacePath": "/workspaces/agents"}}
         bind(api, "company", "environment", "generation", "release", "account")
         for config in api.configs.values():
-            self.assertEqual(config["adapterConfig"]["cwd"], "/workspaces/agents")
+            self.assertEqual(config["adapterConfig"]["cwd"], "")
 
     def test_quiesce_disables_schedules_before_pausing(self):
         api = CompanyApi()

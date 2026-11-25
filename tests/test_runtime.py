@@ -156,24 +156,27 @@ class Packages(unittest.TestCase):
             validate(package)
 
     def test_simulated_ssh_delivery_checks_real_bytes(self):
+        # Real materialization layout, confirmed directly on the running
+        # container 2026-11-25: ~/.claude/skills/<slug>--<hash>/release.json,
+        # not nested under a cwd-relative .paperclip-runtime/opencode path.
         package = build(ROOT)
-        with tempfile.TemporaryDirectory() as root:
-            target = Path(root) / ".paperclip-runtime/opencode/skills/aoc-runtime--key"
+        with tempfile.TemporaryDirectory() as skills_root:
+            target = Path(skills_root) / "aoc-runtime--key"
             prefix = "skills/aoc-runtime/"
             for name, content in package["files"].items():
                 if name.startswith(prefix):
                     file = target / name[len(prefix):]
                     file.parent.mkdir(parents=True, exist_ok=True)
                     file.write_text(content)
-            self.assertEqual(launch.resolve_release(root, package["packageHash"]), target)
+            self.assertEqual(launch.resolve_release(skills_root, package["packageHash"]), target)
             (target / "scripts/entry.py").write_text("tampered")
             with self.assertRaises(RuntimeError):
-                launch.resolve_release(root, package["packageHash"])
+                launch.resolve_release(skills_root, package["packageHash"])
 
     def test_missing_release_and_symlink_fail(self):
-        with tempfile.TemporaryDirectory() as root:
+        with tempfile.TemporaryDirectory() as skills_root:
             with self.assertRaises(RuntimeError):
-                launch.resolve_release(root, "missing")
+                launch.resolve_release(skills_root, "missing")
 
     def probe(self, stdin_text, role="cto"):
         env = {"OPENCODE_DISABLE_PROJECT_CONFIG": "true", "AOC_ROLE": role}

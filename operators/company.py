@@ -46,17 +46,29 @@ def bind(api, company, environment, generation, release, account):
     if {a["name"] for a in active} != set(NAMES.values()) or len(active) != 4:
         raise Blocked("Expected exactly four intended roles; retire obsolete agents first")
     env_row = api.request("GET", "/environments/" + environment)
-    # adapterConfig.cwd is the agent's execution working directory. For a
-    # remote (ssh) environment that directory must exist ON THE REMOTE HOST,
-    # never the Paperclip server's own local instructions-bundle path
-    # (/paperclip/instances/...) -- the paperclip user has no permission to
-    # create that path remotely, and the agent's lifecycle "host" verification
-    # step fails with an unlogged, uncategorized mkdir error (surfaces only as
-    # a generic "unclassified" failure; confirmed via the raw
-    # POST /companies/:id/adapters/:type/test-environment API, which is the
-    # only way to see the real stack trace -- the lifecycle worker never logs
-    # provider error text by design). Root-caused 2026-11-25.
-    remote_cwd = (env_row.get("config") or {}).get("remoteWorkspacePath") if env_row.get("driver") == "ssh" else None
+    # adapterConfig.cwd is read by TWO independent Paperclip subsystems with
+    # incompatible expectations for a remote (ssh) agent:
+    #   - the adapter's own remote execution/test path uses it VERBATIM as
+    #     the working directory on the REMOTE host (resolveAdapterExecutionTargetCwd
+    #     in packages/adapter-utils/execution-target.ts: a non-empty
+    #     configuredCwd is returned as-is, never remapped).
+    #   - the server's own heartbeat/run setup (resolveAnchorWorkspaceForRun
+    #     in server/src/services/heartbeat/workspaces.ts) ALSO reads the same
+    #     field and fs.mkdir()'s it as a LOCAL anchor directory on the
+    #     Paperclip SERVER's own filesystem, for session/workspace tracking,
+    #     regardless of the agent's execution environment.
+    # No single literal path satisfies both: the local instructions-bundle
+    # path (/paperclip/instances/...) fails remotely (EACCES on the remote
+    # host, surfaced only as a generic, unlogged lifecycle "unclassified"
+    # failure); remoteWorkspacePath (/workspaces/agents) fails locally
+    # (EACCES mkdir '/workspaces' on the Paperclip server itself, surfaced as
+    # heartbeat errorCode "setup_failed"/"EACCES" during real task dispatch).
+    # Both subsystems have a correct, independent fallback when cwd is EMPTY
+    # (adapterExecutionTargetRemoteCwd uses the environment's own remote cwd;
+    # resolveAnchorWorkspaceForRun materializes its own local task/agent
+    # directory) -- so for a remote environment, leave cwd unset entirely
+    # rather than forcing either literal value. Root-caused 2026-11-25.
+    is_remote_environment = env_row.get("driver") not in (None, "local")
     shared = {}
     for agent in active:
         config = api.request("GET", "/agents/" + agent["id"] + "/configuration")
@@ -72,7 +84,11 @@ def bind(api, company, environment, generation, release, account):
         instructions = bundle.get("resolvedEntryPath") or adapter.get("instructionsFilePath")
         if not instructions or not instructions.startswith("/"):
             raise Blocked("Import must materialize a managed instruction bundle first")
-        adapter["cwd"] = remote_cwd or str(Path(instructions).parent)
+        # PATCH merges adapterConfig rather than replacing it wholesale, so
+        # omitting cwd would leave a stale value in place -- clear it
+        # explicitly with an empty string (both consuming Paperclip
+        # subsystems treat an empty/blank cwd as "unset", never "/").
+        adapter["cwd"] = "" if is_remote_environment else str(Path(instructions).parent)
         adapter["instructionsFilePath"] = instructions
         adapter["command"] = "/usr/local/bin/aoc-cto" if role == "cto" else "/usr/local/bin/aoc-opencode"
         env = adapter.setdefault("env", {})
@@ -93,7 +109,7 @@ def bind(api, company, environment, generation, release, account):
             "metadata": {**(config.get("metadata") or {}), "aoc": {
                 "generation": generation, "release": release, "account": account}}})
         saved = api.request("GET", path + "/configuration")
-        if saved.get("defaultEnvironmentId") != environment or saved["adapterConfig"]["cwd"] != adapter["cwd"]:
+        if saved.get("defaultEnvironmentId") != environment or saved["adapterConfig"].get("cwd") != adapter.get("cwd"):
             raise Blocked("Agent binding readback failed")
 
 
