@@ -496,6 +496,42 @@ Re-verify against current Paperclip source before retaining a workaround.
   run on every reconciled part. If you ever need an agent to NOT run live on
   a record you're creating on its behalf, create it already in its terminal
   status in the same call.
+- **An agent can get stuck in `pausing` forever on an SSH/remote (legacy
+  runtime) agent, if the pause lands while a command is actively executing
+  over SSH.** Root-caused 2026-11-25 (previously noted as "never fully
+  root-caused" and removed as stale this morning -- it recurred on a brand
+  new company generation, so it's a real platform gap, not something tied
+  to one company). Mechanism, from reading the real source:
+  - `server/src/services/agent-lifecycle-driver.ts`'s `runHost()` keeps an
+    agent in `pausing` until `heartbeat.agentInvocationStopBlocker()`
+    returns `null`. That function (`server/src/services/heartbeat.ts`)
+    blocks on any of: the run's own `status` not yet terminal
+    (`run_not_terminal`), an in-memory execution tracker still holding it
+    (`run_executing_here`), or its `controllerLeaseExpiresAt` not yet
+    elapsed (`run_controller_lease_held`).
+  - The only automatic sweep that clears a stuck legacy controller lease
+    (`server/src/services/execution-recovery-resolution.ts`, calling
+    `provenGoneLegacyControllerBootId` in `legacy-controller-lease.ts`)
+    only fires once it proves the **Paperclip server process** that held
+    the lease (`controllerBootId`) is gone -- i.e. it recovers from a
+    *server* crash/restart. It has no path for "the server is fine, but the
+    remote SSH child it was waiting on died" -- exactly what happens when a
+    pause/quiesce interrupts a live SSH-executing agent: the remote process
+    is killed (confirmed via `aws ecs execute-command ... ps aux`: no
+    opencode/python process left, only an orphaned detached `sbt` server),
+    but the Paperclip server's own controller never restarts, so its lease
+    never gets reclaimed.
+  - Tried and confirmed NOT to help: `paperclipai agent
+    runtime-state:reset-session` (only clears client-side session/task
+    tracking, not the server's `heartbeat_runs` row);
+    `heartbeat:invoke` (409s — refuses a paused agent); re-issuing
+    `pause` (no-ops, same stuck state). No CLI/API lever found that forces
+    the stop-blocker to clear.
+  - Workaround (same as before): create a new agent and leave the stuck one
+    orphaned (terminated-but-undeleted); don't burn time forcing it through
+    the transition. Avoid triggering a `quiesce`/redeploy while a long
+    stage (the Solver, which can run 10-15+ min of sbt/model work) is
+    actively executing over SSH -- that's the trigger condition.
 - **`POST /api/agents/:id/clear-error` exists but is not exposed by the
   CLI.** Call it directly (reuse `resolveCommandContext`/`PaperclipApiClient`
   from `cli/src/commands/client/common.ts` in a throwaway `tsx` script if you
