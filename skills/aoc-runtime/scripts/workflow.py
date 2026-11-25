@@ -3,6 +3,7 @@ import json
 import os
 from contextlib import contextmanager
 
+from aoc_repair import candidate_present
 from common import Blocked, calendar, digest, finale, identity, now
 from publication import verify
 from repository import load_progress, save_progress
@@ -101,7 +102,16 @@ class Controller:
                 "authorization": source, "year": year, "day": day, "part": part,
                 "stage": "control", "attempt": 0}
             control = self.create(spec, self.agent, status="backlog")
-            self.api.put_document(control["id"], "state", {"part": part, "attempt": 0})
+            state = {"part": part, "attempt": 0}
+            if not finale(year, day, part) and candidate_present(self.repo.path, year, day, part):
+                try:
+                    receipt = verify(self.repo, year, day, part)
+                except Blocked:
+                    pass  # no usable candidate; fall through to the gather-first pipeline
+                else:
+                    self.api.put_document(control["id"], "publication", receipt)
+                    state["start"] = "submit"
+            self.api.put_document(control["id"], "state", state)
             self.api.request("PATCH", "/issues/" + control["id"], {"status": "blocked"})
             return self.advance(control, spec, [], False)
         return {"outcome": "complete", "parts": 524}

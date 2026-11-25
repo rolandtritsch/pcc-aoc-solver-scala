@@ -56,6 +56,7 @@ class Api:
 class Repo:
     def __init__(self):
         self.checks = 0
+        self.path = Path("/fake-repo")
 
     def assert_owner(self):
         pass
@@ -233,6 +234,62 @@ class WorkflowTests(unittest.TestCase):
             result = self.controller.select("reconcile", authorize=False)
         self.assertEqual(result["nextPart"], {"year": 2015, "day": 1, "part": 1})
         self.assertEqual(len(self.api.rows), before)
+
+    def test_existing_candidate_is_verified_and_dispatched_straight_to_submit(self):
+        receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "42",
+            "commit": "deadbeef", "files": {}, "owner": "owner", "verification": {},
+            "formatting": "passed", "tests": "passed", "runner": "passed", "verifiedAt": "now"}
+        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
+                patch("workflow.load_progress", return_value={"parts": {}}), \
+                patch("workflow.candidate_present", return_value=True), \
+                patch("workflow.verify", return_value=receipt):
+            result = self.controller.select("daily", authorize=True)
+        self.assertEqual(result["stage"], "submit")
+        submit_child = self.child("submit")
+        control_id = submit_child["parentId"]
+        self.assertEqual(self.api.docs[control_id, "publication"], receipt)
+        self.assertEqual(self.api.docs[control_id, "state"]["start"], "submit")
+        self.assertFalse(any((a := assignment(r)) and a["stage"] in ("gather", "solve")
+            for r in self.api.rows.values() if r["parentId"] == control_id))
+
+    def test_candidate_failing_verify_falls_through_to_full_pipeline(self):
+        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
+                patch("workflow.load_progress", return_value={"parts": {}}), \
+                patch("workflow.candidate_present", return_value=True), \
+                patch("workflow.verify", side_effect=Blocked("does not compile")):
+            result = self.controller.select("daily", authorize=True)
+        self.assertEqual(result["stage"], "gather")
+        gather_child = self.child("gather")
+        control_id = gather_child["parentId"]
+        self.assertIsNone(self.api.docs.get((control_id, "publication")))
+        self.assertNotIn("start", self.api.docs[control_id, "state"])
+
+    def test_no_candidate_uses_full_pipeline_unchanged(self):
+        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
+                patch("workflow.load_progress", return_value={"parts": {}}), \
+                patch("workflow.candidate_present", return_value=False):
+            result = self.controller.select("daily", authorize=True)
+        self.assertEqual(result["stage"], "gather")
+
+    def test_straight_to_submit_rejection_is_tracked_like_any_other(self):
+        receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "42",
+            "commit": "deadbeef", "files": {}, "owner": "owner", "verification": {},
+            "formatting": "passed", "tests": "passed", "runner": "passed", "verifiedAt": "now"}
+        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
+                patch("workflow.load_progress", return_value={"parts": {}}), \
+                patch("workflow.candidate_present", return_value=True), \
+                patch("workflow.verify", return_value=receipt):
+            self.controller.select("daily", authorize=True)
+        submit_child = self.child("submit")
+        control_id = submit_child["parentId"]
+        self.complete(submit_child, "rejected", receipt=receipt)
+        control = self.api.rows[control_id]
+        spec = {"schema": "aoc-task-v1", "year": 2015, "day": 1, "part": 1,
+            "stage": "control", "attempt": 0, "generation": "generation", "authorization": "daily"}
+        self.assertEqual(self.controller.advance(control, spec, [], False)["reason"], "rejected")
+        self.controller.advance(control, spec, [], True)  # repair: bounded retry
+        self.assertEqual(assignment(self.child("gather", attempt=1))["attempt"], 1)
+        self.assertEqual(self.api.docs[control_id, "rejections"], {"1": ["42"]})
 
 
 if __name__ == "__main__":
