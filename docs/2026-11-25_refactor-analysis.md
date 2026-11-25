@@ -214,6 +214,27 @@ This closes the lease/claim risk named above against real, not simulated,
 long-running work. The only remaining unexercised risk from the original
 list is racing/concurrent company instances.
 
+**Racing-instances spike result (2026-11-25):** real OS-level process
+contention, not simulated/in-memory locking, for the same lease on one
+part_key — every racer is a separate process using `fcntl.flock(LOCK_EX |
+LOCK_NB)` on a shared lock file as the exclusivity primitive (the same
+non-blocking "try, don't wait" shape as a `SELECT ... FOR UPDATE SKIP
+LOCKED` acquire).
+- **Stress test:** 10 real concurrent processes raced for one lease, 5
+  trials (50 total race attempts) — exactly one winner every trial, zero
+  double-acquires.
+- **Realistic scenario:** exactly 2 real instances raced for `2015/01/1`
+  (modeling two company instances both believing they own a part, e.g.
+  after a reimport). The losing instance was denied **before attempting any
+  work at all** — it never ran sbt, never risked a duplicate submission. The
+  winner ran a real (non-`clean`) `sbt testOnly ...; run` and reproduced the
+  correct, known answer (`138`).
+
+This closes the last unexercised risk from the original Option A caveats.
+Combined with the two prior spikes, Option A has now been checked against
+real historical drift, a real long-running solve under lease, and real
+concurrent instances, with no red or yellow flags in any of the three.
+
 ---
 
 ## Option B — Temporal as durable coordinator (ECS Fargate)
@@ -397,16 +418,18 @@ for evidence of recurring state bugs, not be built speculatively up front.
 Build the shared pure reducer and its must-have tests first, regardless of
 which option wins — that's the durable, portable asset across all three.
 
-**Update, 2026-11-25:** Option A's reconciliation loop has been spiked twice
-with no red/yellow flags — against real historical repo data, and against
-the lease/claim mechanism under two real `sbt` solver builds (see Option A's
-Spike results above) — and is the current leading direction. Both spikes
-were still narrow: neither exercised concurrent/racing company instances.
-That remains the one open item before treating Option A as settled. Keep
-Option B's ECS Fargate POC on the backlog as a cheap, isolated, low-priority
-check (not blocking) given its Ugly finding, in case the racing-instances
-spike turns up a hard blocker; Option C (DBOS) remains the fallback if it
-does.
+**Update, 2026-11-25:** Option A's reconciliation loop has been spiked three
+times with no red/yellow flags in any of them — against real historical
+repo data, against the lease/claim mechanism under two real `sbt` solver
+builds, and against real OS-level racing/concurrent company instances (see
+Option A's Spike results above). All three caveats originally raised
+against Option A are now closed with evidence from real builds and real
+process contention, not simulation. Option A is the recommended direction.
+Keep Option B's ECS Fargate POC on the backlog as a cheap, isolated,
+low-priority check only if implementation surfaces a concrete need for
+Temporal's durability/observability guarantees; Option C (DBOS) remains the
+documented fallback if Option A hits a blocker during real implementation
+that these spikes didn't surface.
 
 **Non-negotiables:** repo remains source of truth; state repair is a
 first-class behavior, not an operator script; all external effects are
