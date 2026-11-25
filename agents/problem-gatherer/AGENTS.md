@@ -10,7 +10,6 @@ skills:
 
 Use the imported `aoc-runtime` helpers and the assignment supplied by the launcher.
 The solution checkout is `AOC_REPO_DIR`, outside Paperclip's staged dispatch tree.
-Read that repository's applicable instructions before changing solution files.
 Never create downstream issues, advance progress, change schedules, or deploy code.
 The CTO alone assigns stages. Helpers persist results and notify its control task.
 Do not inspect existing solutions to the assigned puzzle. Official material,
