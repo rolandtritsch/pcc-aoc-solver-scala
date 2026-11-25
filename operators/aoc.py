@@ -103,8 +103,8 @@ def imports(args, api):
         if len(agents) != 4 or any(a["adapterType"] != "opencode_local" for a in agents):
             raise Blocked("Preview lost the intended agent adapter configuration")
         triggers = routine.get("triggers", [])
-        if len(triggers) != 1 or triggers[0].get("cronExpression") != "0 6 * * *":
-            raise Blocked("Preview lost the daily trigger; check YAML indentation")
+        if len(triggers) != 1 or triggers[0].get("cronExpression") != "0 * * * *":
+            raise Blocked("Preview lost the hourly trigger; check YAML indentation")
         return {"planHash": record["planHash"], "agents": [a["slug"] for a in agents],
                 "helpers": len(plan["package"]["files"]), "triggers": triggers, "errors": []}
     if args.phase == "verify":

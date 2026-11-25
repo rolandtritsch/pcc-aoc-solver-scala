@@ -26,7 +26,7 @@ class CompanyApi:
         self.calls = []
         self.agents = [{"id": key, "name": name, "status": "paused"} for key, name in NAMES.items()]
         self.routine = {"id": "daily", "status": "paused", "triggers": [
-            {"id": "trigger", "enabled": False, "cronExpression": "0 6 * * *", "timezone": "UTC"}]}
+            {"id": "trigger", "enabled": False, "cronExpression": "0 * * * *", "timezone": "UTC"}]}
         self.environment = {"id": "environment", "driver": "local", "config": {}}
         self.configs = {key: {"configurationRevision": "revision", "defaultEnvironmentId": "old",
             "runtimeConfig": {"heartbeat": {"enabled": False}}, "adapterConfig": {

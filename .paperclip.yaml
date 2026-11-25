@@ -163,5 +163,5 @@ routines:
     triggers:
       - kind: schedule
         enabled: false
-        cronExpression: 0 6 * * *
+        cronExpression: 0 * * * *
         timezone: UTC
