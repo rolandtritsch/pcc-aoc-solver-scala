@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -173,6 +174,32 @@ class Packages(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             with self.assertRaises(RuntimeError):
                 launch.resolve_release(root, "missing")
+
+    def probe(self, stdin_text, role="cto"):
+        env = {"OPENCODE_DISABLE_PROJECT_CONFIG": "true", "AOC_ROLE": role}
+        with patch.dict(os.environ, env, clear=True), \
+                patch("sys.argv", ["launch.py", "run"]), \
+                patch("sys.stdin", io.StringIO(stdin_text)):
+            return launch.main()
+
+    def test_hello_probe_tolerates_a_trailing_newline(self):
+        # Real transports (e.g. an SSH exec channel) may append a newline to
+        # piped stdin; the exact-match check must not be that brittle.
+        self.assertEqual(self.probe("Respond with hello.\n"), 0)
+
+    def test_hello_probe_accepts_exact_bytes_too(self):
+        self.assertEqual(self.probe("Respond with hello."), 0)
+
+    def test_hello_probe_rejects_wrong_content(self):
+        with self.assertRaises(RuntimeError):
+            self.probe("Respond with something else.")
+
+    def test_unauthenticated_invocation_without_probe_flag_is_rejected(self):
+        with patch.dict(os.environ, {"AOC_ROLE": "cto"}, clear=True), \
+                patch("sys.argv", ["launch.py", "run"]), \
+                patch("sys.stdin", io.StringIO("Respond with hello.")):
+            with self.assertRaises(RuntimeError):
+                launch.main()
 
 
 class GitTests(unittest.TestCase):

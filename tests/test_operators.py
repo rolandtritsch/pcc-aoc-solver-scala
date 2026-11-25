@@ -27,6 +27,7 @@ class CompanyApi:
         self.agents = [{"id": key, "name": name, "status": "paused"} for key, name in NAMES.items()]
         self.routine = {"id": "daily", "status": "paused", "triggers": [
             {"id": "trigger", "enabled": False, "cronExpression": "0 6 * * *", "timezone": "UTC"}]}
+        self.environment = {"id": "environment", "driver": "local", "config": {}}
         self.configs = {key: {"configurationRevision": "revision", "defaultEnvironmentId": "old",
             "runtimeConfig": {"heartbeat": {"enabled": False}}, "adapterConfig": {
                 "instructionsFilePath": f"/paperclip/instructions/{key}/AGENTS.md", "env": {
@@ -46,6 +47,8 @@ class CompanyApi:
             return []
         if path == "/companies/company/routines":
             return [self.routine]
+        if path == "/environments/environment":
+            return copy.deepcopy(self.environment)
         if path == "/routines/daily":
             if method == "PATCH":
                 self.routine.update(body)
@@ -129,6 +132,19 @@ class OperatorTests(unittest.TestCase):
             self.assertEqual(env["AOC_RELEASE"]["value"], "release")
             self.assertEqual(config["adapterConfig"]["cwd"], f"/paperclip/instructions/{key}")
         self.assertNotIn("AOC_SESSION", api.configs["problem-solver"]["adapterConfig"]["env"])
+
+    def test_bind_uses_remote_workspace_as_cwd_on_an_ssh_environment(self):
+        # Root cause of the 2026-11-25 "unclassified" agent-lifecycle-
+        # verification failure: cwd pointed at the Paperclip server's own
+        # local instructions-bundle path, which doesn't exist on a remote
+        # SSH-executed agent's host and can't be created there (permission
+        # denied at /). cwd must be the environment's own remote workspace.
+        api = CompanyApi()
+        api.environment = {"id": "environment", "driver": "ssh",
+            "config": {"remoteWorkspacePath": "/workspaces/agents"}}
+        bind(api, "company", "environment", "generation", "release", "account")
+        for config in api.configs.values():
+            self.assertEqual(config["adapterConfig"]["cwd"], "/workspaces/agents")
 
     def test_quiesce_disables_schedules_before_pausing(self):
         api = CompanyApi()

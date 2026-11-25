@@ -45,6 +45,18 @@ def bind(api, company, environment, generation, release, account):
     active = [a for a in state["agents"] if a["status"] != "terminated"]
     if {a["name"] for a in active} != set(NAMES.values()) or len(active) != 4:
         raise Blocked("Expected exactly four intended roles; retire obsolete agents first")
+    env_row = api.request("GET", "/environments/" + environment)
+    # adapterConfig.cwd is the agent's execution working directory. For a
+    # remote (ssh) environment that directory must exist ON THE REMOTE HOST,
+    # never the Paperclip server's own local instructions-bundle path
+    # (/paperclip/instances/...) -- the paperclip user has no permission to
+    # create that path remotely, and the agent's lifecycle "host" verification
+    # step fails with an unlogged, uncategorized mkdir error (surfaces only as
+    # a generic "unclassified" failure; confirmed via the raw
+    # POST /companies/:id/adapters/:type/test-environment API, which is the
+    # only way to see the real stack trace -- the lifecycle worker never logs
+    # provider error text by design). Root-caused 2026-11-25.
+    remote_cwd = (env_row.get("config") or {}).get("remoteWorkspacePath") if env_row.get("driver") == "ssh" else None
     shared = {}
     for agent in active:
         config = api.request("GET", "/agents/" + agent["id"] + "/configuration")
@@ -60,7 +72,7 @@ def bind(api, company, environment, generation, release, account):
         instructions = bundle.get("resolvedEntryPath") or adapter.get("instructionsFilePath")
         if not instructions or not instructions.startswith("/"):
             raise Blocked("Import must materialize a managed instruction bundle first")
-        adapter["cwd"] = str(Path(instructions).parent)
+        adapter["cwd"] = remote_cwd or str(Path(instructions).parent)
         adapter["instructionsFilePath"] = instructions
         adapter["command"] = "/usr/local/bin/aoc-cto" if role == "cto" else "/usr/local/bin/aoc-opencode"
         env = adapter.setdefault("env", {})

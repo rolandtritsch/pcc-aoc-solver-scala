@@ -38,7 +38,7 @@ def main():
     if not os.environ.get("PAPERCLIP_RUN_ID"):
         if os.environ.get("OPENCODE_DISABLE_PROJECT_CONFIG") != "true":
             raise RuntimeError("Unauthenticated runtime invocation")
-        prompt = sys.stdin.read(65)
+        prompt = sys.stdin.read(65).rstrip("\n")
         if prompt != "Respond with hello.":
             raise RuntimeError("Unauthenticated invocation is not the exact hello probe")
         if os.environ.get("AOC_ROLE") in ("cto", "problem-gatherer", "problem-submitter"):

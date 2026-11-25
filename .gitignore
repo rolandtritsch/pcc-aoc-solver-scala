@@ -13,5 +13,7 @@ __pycache__/
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/company-creator
+!.claude/skills/deploy-aoc-company
+!.claude/skills/deploy-aoc-runtime-image
 .agents/skills/paperclip*
 .agents/skills/para-memory-files
