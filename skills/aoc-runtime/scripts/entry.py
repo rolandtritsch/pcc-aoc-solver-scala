@@ -9,7 +9,7 @@ import signal
 import sys
 
 from api import Api
-from common import Blocked, digest, git, lock, read_json, write_json
+from common import Blocked, LockContention, digest, git, lock, read_json, write_json
 from publication import publish, verify, allowed_files
 from repository import Repository
 from aoc_site import Site
@@ -179,10 +179,19 @@ def main():
                 # already happened. Never downgrade a genuine semantic
                 # outcome (rejected/rate_limited/uncertain) that a prior,
                 # successful run already recorded.
-                state, _ = api.document(task, "state")
-                state = state or {"part": spec["part"], "attempt": 0}
-                if state.get("outcome") not in ("rejected", "rate_limited", "uncertain"):
-                    api.put_document(task, "state", {**state, "outcome": "blocked"})
+                if not isinstance(error, LockContention):
+                    # Lock contention means another agent (often a long-running
+                    # Solver) is still legitimately busy -- nothing is actually
+                    # broken, so the control task's state must not be touched.
+                    # Recording it as "blocked" here would make the next
+                    # continuation restart the whole stage pipeline from
+                    # "gather" (failedStage is never known at this generic
+                    # catch-all), discarding an already-successful, still-valid
+                    # gather/solve result purely because of a busy-lock race.
+                    state, _ = api.document(task, "state")
+                    state = state or {"part": spec["part"], "attempt": 0}
+                    if state.get("outcome") not in ("rejected", "rate_limited", "uncertain"):
+                        api.put_document(task, "state", {**state, "outcome": "blocked"})
         except Exception:
             pass  # Keep the original failure visible; task remains recoverable.
         print(json.dumps({"type": "text", "part": {"type": "text", "text": str(error)}}))

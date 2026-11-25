@@ -18,6 +18,13 @@ class Blocked(RuntimeError):
     pass
 
 
+class LockContention(Blocked):
+    """Another agent is still legitimately busy (e.g. a long Solver run) --
+    not a semantic failure, nothing is actually broken. Callers must not
+    treat this like a genuine Blocked: no state should be mutated, so a
+    later continuation simply sees the unchanged, still-valid state."""
+
+
 def now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -118,7 +125,7 @@ def lock(root):
                 break
             except BlockingIOError as error:
                 if attempt == LOCK_ATTEMPTS - 1:
-                    raise Blocked("Another company mutation is active; retry later") from error
+                    raise LockContention("Another company mutation is active; retry later") from error
                 # This company's own agents run short mutations; a brief
                 # overlap should self-clear well within this bounded wait.
                 time.sleep(attempt + random.uniform(0, 0.5))

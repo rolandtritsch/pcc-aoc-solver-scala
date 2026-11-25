@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills/aoc-runtime/scripts"))
-from common import Blocked
+from common import Blocked, LockContention
 import entry
 
 
@@ -45,6 +45,22 @@ class MainErrorHandlingTests(unittest.TestCase):
              patch.dict("os.environ", {"AOC_ROLE": "cto"}, clear=False):
             entry.main()
         self.assertEqual(api.docs[("control-1", "state")]["outcome"], "rejected")
+
+    def test_cto_lock_contention_never_touches_state(self):
+        # Mirrors a real 2026-11-25 incident: a periodic CTO re-check landed
+        # while the Solver (a long-running stage) still held the shared
+        # mutation lock. The generic breadcrumb logic doesn't know which
+        # stage is in flight, so it would default to "gather" on retry --
+        # silently discarding an already-successful solve. Lock contention
+        # means nothing is actually broken, so state must stay untouched.
+        api = FakeApi(docs={("control-1", "state"): {"part": 1, "attempt": 0}})
+        spec = {"schema": "aoc-task-v1", "stage": "control", "part": 1, "attempt": 0}
+        with patch("entry.run", side_effect=LockContention("Another company mutation is active; retry later")), \
+             patch("entry.runtime_context", return_value=self.context(api, spec)), \
+             patch.dict("os.environ", {"AOC_ROLE": "cto"}, clear=False):
+            code = entry.main()
+        self.assertEqual(code, 2)
+        self.assertEqual(api.docs[("control-1", "state")], {"part": 1, "attempt": 0})
 
     def test_specialist_failure_keeps_existing_non_cto_behavior(self):
         api = FakeApi()
