@@ -3,8 +3,9 @@ import json
 import os
 from contextlib import contextmanager
 
-from aoc_repair import candidate_present
-from common import Blocked, calendar, digest, finale, identity, now
+from aoc_repair import next_unsolved
+from aoc_state import CANDIDATE_PRESENT
+from common import Blocked, digest, finale, identity, now
 from publication import verify
 from repository import load_progress, save_progress
 from stages import evidence
@@ -68,53 +69,28 @@ class Controller:
         return result
 
     def select(self, source, authorize=True):
-        progress = load_progress(self.repo, self.site.account)
-        for year, day, part in calendar():
-            key = identity(year, day, part)
-            entry = progress["parts"].get(key)
-            if entry:
-                if entry.get("outcome") != "accepted" or not entry.get("site"):
-                    raise Blocked("Invalid progress entry")
-                if not finale(year, day, part):
-                    try:
-                        self.repo.validate_receipt(entry["receipt"])
-                    except Blocked:
-                        page = self.site.page(year, day)
-                        receipt = verify(self.repo, year, day, part)
-                        if (page["complete"] < part or len(page["answers"]) < part
-                                or page["answers"][part - 1] != receipt["answer"]):
-                            raise Blocked("Changed historical solution disagrees with site")
-                        entry["receipt"], entry["site"] = receipt, evidence(page)
-                        save_progress(self.repo, progress)
-                continue
-            page = self.site.page(year, day)
-            if page["complete"] >= part:
-                receipt = None if finale(year, day, part) else verify(self.repo, year, day, part)
-                if receipt and (len(page["answers"]) < part or page["answers"][part - 1] != receipt["answer"]):
-                    raise Blocked("Historical code does not reproduce site's accepted answer")
-                progress["parts"][key] = {"outcome": "accepted", "kind": "reconciled",
-                    "receipt": receipt, "site": evidence(page)}
-                save_progress(self.repo, progress)
-                continue
-            if not authorize:
-                return {"outcome": "ready", "nextPart": {"year": year, "day": day, "part": part}}
-            spec = {"schema": "aoc-task-v1", "generation": self.generation,
-                "authorization": source, "year": year, "day": day, "part": part,
-                "stage": "control", "attempt": 0}
-            control = self.create(spec, self.agent, status="backlog")
-            state = {"part": part, "attempt": 0}
-            if not finale(year, day, part) and candidate_present(self.repo.path, year, day, part):
-                try:
-                    receipt = verify(self.repo, year, day, part)
-                except Blocked:
-                    pass  # no usable candidate; fall through to the gather-first pipeline
-                else:
-                    self.api.put_document(control["id"], "publication", receipt)
-                    state["start"] = "submit"
-            self.api.put_document(control["id"], "state", state)
-            self.api.request("PATCH", "/issues/" + control["id"], {"status": "blocked"})
-            return self.advance(control, spec, [], False)
-        return {"outcome": "complete", "parts": 524}
+        result = next_unsolved(self.repo, self.site)
+        if result is None:
+            return {"outcome": "complete", "parts": 524}
+        year, day, part, candidate_state = result
+        if not authorize:
+            return {"outcome": "ready", "nextPart": {"year": year, "day": day, "part": part}}
+        spec = {"schema": "aoc-task-v1", "generation": self.generation,
+            "authorization": source, "year": year, "day": day, "part": part,
+            "stage": "control", "attempt": 0}
+        control = self.create(spec, self.agent, status="backlog")
+        state = {"part": part, "attempt": 0}
+        if candidate_state == CANDIDATE_PRESENT:
+            try:
+                receipt = verify(self.repo, year, day, part)
+            except Blocked:
+                pass  # no usable candidate; fall through to the gather-first pipeline
+            else:
+                self.api.put_document(control["id"], "publication", receipt)
+                state["start"] = "submit"
+        self.api.put_document(control["id"], "state", state)
+        self.api.request("PATCH", "/issues/" + control["id"], {"status": "blocked"})
+        return self.advance(control, spec, [], False)
 
     def advance(self, control, spec, rows, allow_repair):
         state, _ = self.api.document(control["id"], "state")

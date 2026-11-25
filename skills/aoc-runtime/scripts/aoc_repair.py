@@ -1,15 +1,20 @@
-"""State-repair: reconcile every part from the repo, under a fenced lease.
+"""State-repair: reconcile every part from the repo, the live site, and
+.aoc/progress.json, self-healing drift along the way.
 
-Replaces the inline "full 2015+ rewalk" that used to live in
-`Controller.select()`. Same self-healing behavior, now expressed as the
-reconcile() tick from aoc_state.py and exercised by its own test suite
-instead of being embedded in the Paperclip-dispatch control flow.
+This is the single, sole implementation of what used to be duplicated as an
+inline loop in `Controller.select()` (docs/2026-11-25_refactor-analysis.md's
+"full 2015+ rewalk"). `workflow.py`'s `select()` now calls `next_unsolved()`
+directly and only owns the Paperclip-specific dispatch step (creating a
+control task and choosing where its stage pipeline starts) -- every
+reconciliation decision lives here, with its own test suite.
 """
 from pathlib import Path
 
-from aoc_state import ACCEPTED, CANDIDATE_PRESENT, FileLeaseStore, reconcile
-from common import calendar, finale, identity
+from aoc_state import CANDIDATE_PRESENT, FileLeaseStore, reconcile
+from common import Blocked, calendar, finale, identity
+from publication import verify
 from repository import load_progress, save_progress
+from stages import evidence
 
 
 def candidate_present(repo_path, year, day, part):
@@ -18,27 +23,44 @@ def candidate_present(repo_path, year, day, part):
 
 
 def next_unsolved(repo, site):
-    """Reconcile the whole calendar against repo + progress.json receipts,
-    self-healing any drift, and return the first (year, day, part) with no
-    accepted receipt. Mirrors the old `Controller.select()` rewalk, but
-    every decision now goes through the same pure `reconcile()` the test
-    suite exercises -- no inline duplicate logic.
-
-    Does not query the live site for undiscovered parts; that remains the
-    caller's job (via `self.site.page(...)` in workflow.py) once a specific
-    next part is chosen, exactly as before. This function only answers
-    "what does the repo already show as accepted or candidate", which is
-    read-only and safe to call on every tick.
+    """Reconcile the whole calendar against repo + site + progress.json,
+    self-healing drift exactly as the original inline loop did (same
+    Blocked messages, same repair branches), and return
+    `(year, day, part, state)` for the first part with no accepted receipt,
+    or `None` if all 524 parts are accepted. `state` is `CANDIDATE_PRESENT`
+    or `DISCOVERED` (see aoc_state.py) -- never `ACCEPTED`, since accepted
+    parts are reconciled and skipped, not returned.
     """
     progress = load_progress(repo, site.account)
     for year, day, part in calendar():
         key = identity(year, day, part)
-        receipt = progress["parts"].get(key)
-        has_code = finale(year, day, part) or candidate_present(repo.path, year, day, part)
-        state = reconcile(has_code, receipt)
-        if state == ACCEPTED:
+        entry = progress["parts"].get(key)
+        if entry:
+            if entry.get("outcome") != "accepted" or not entry.get("site"):
+                raise Blocked("Invalid progress entry")
+            if not finale(year, day, part):
+                try:
+                    repo.validate_receipt(entry["receipt"])
+                except Blocked:
+                    page = site.page(year, day)
+                    receipt = verify(repo, year, day, part)
+                    if (page["complete"] < part or len(page["answers"]) < part
+                            or page["answers"][part - 1] != receipt["answer"]):
+                        raise Blocked("Changed historical solution disagrees with site")
+                    entry["receipt"], entry["site"] = receipt, evidence(page)
+                    save_progress(repo, progress)
             continue
-        return year, day, part, state
+        page = site.page(year, day)
+        if page["complete"] >= part:
+            receipt = None if finale(year, day, part) else verify(repo, year, day, part)
+            if receipt and (len(page["answers"]) < part or page["answers"][part - 1] != receipt["answer"]):
+                raise Blocked("Historical code does not reproduce site's accepted answer")
+            progress["parts"][key] = {"outcome": "accepted", "kind": "reconciled",
+                "receipt": receipt, "site": evidence(page)}
+            save_progress(repo, progress)
+            continue
+        has_code = candidate_present(repo.path, year, day, part)
+        return year, day, part, reconcile(has_code, None, None)
     return None
 
 

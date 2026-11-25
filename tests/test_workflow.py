@@ -230,7 +230,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_reconcile_stops_before_authorizing_unsolved_work(self):
         before = len(self.api.rows)
-        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), patch("workflow.load_progress", return_value={"parts": {}}):
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), patch("aoc_repair.load_progress", return_value={"parts": {}}):
             result = self.controller.select("reconcile", authorize=False)
         self.assertEqual(result["nextPart"], {"year": 2015, "day": 1, "part": 1})
         self.assertEqual(len(self.api.rows), before)
@@ -239,9 +239,9 @@ class WorkflowTests(unittest.TestCase):
         receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "42",
             "commit": "deadbeef", "files": {}, "owner": "owner", "verification": {},
             "formatting": "passed", "tests": "passed", "runner": "passed", "verifiedAt": "now"}
-        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
-                patch("workflow.load_progress", return_value={"parts": {}}), \
-                patch("workflow.candidate_present", return_value=True), \
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), \
+                patch("aoc_repair.load_progress", return_value={"parts": {}}), \
+                patch("aoc_repair.candidate_present", return_value=True), \
                 patch("workflow.verify", return_value=receipt):
             result = self.controller.select("daily", authorize=True)
         self.assertEqual(result["stage"], "submit")
@@ -253,9 +253,9 @@ class WorkflowTests(unittest.TestCase):
             for r in self.api.rows.values() if r["parentId"] == control_id))
 
     def test_candidate_failing_verify_falls_through_to_full_pipeline(self):
-        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
-                patch("workflow.load_progress", return_value={"parts": {}}), \
-                patch("workflow.candidate_present", return_value=True), \
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), \
+                patch("aoc_repair.load_progress", return_value={"parts": {}}), \
+                patch("aoc_repair.candidate_present", return_value=True), \
                 patch("workflow.verify", side_effect=Blocked("does not compile")):
             result = self.controller.select("daily", authorize=True)
         self.assertEqual(result["stage"], "gather")
@@ -265,9 +265,9 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("start", self.api.docs[control_id, "state"])
 
     def test_no_candidate_uses_full_pipeline_unchanged(self):
-        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
-                patch("workflow.load_progress", return_value={"parts": {}}), \
-                patch("workflow.candidate_present", return_value=False):
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), \
+                patch("aoc_repair.load_progress", return_value={"parts": {}}), \
+                patch("aoc_repair.candidate_present", return_value=False):
             result = self.controller.select("daily", authorize=True)
         self.assertEqual(result["stage"], "gather")
 
@@ -275,9 +275,9 @@ class WorkflowTests(unittest.TestCase):
         receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "42",
             "commit": "deadbeef", "files": {}, "owner": "owner", "verification": {},
             "formatting": "passed", "tests": "passed", "runner": "passed", "verifiedAt": "now"}
-        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
-                patch("workflow.load_progress", return_value={"parts": {}}), \
-                patch("workflow.candidate_present", return_value=True), \
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), \
+                patch("aoc_repair.load_progress", return_value={"parts": {}}), \
+                patch("aoc_repair.candidate_present", return_value=True), \
                 patch("workflow.verify", return_value=receipt):
             self.controller.select("daily", authorize=True)
         submit_child = self.child("submit")
@@ -295,9 +295,9 @@ class WorkflowTests(unittest.TestCase):
         site = type("Site", (), {"account": "account",
             "page": lambda *a: {"complete": 1, "answers": ["42"]}})()
         controller = Controller(self.api, self.repo, site, "company", "generation", "CTO")
-        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
-                patch("workflow.load_progress", return_value={"parts": {}}), \
-                patch("workflow.verify", side_effect=Blocked("no code to reproduce the answer")):
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), \
+                patch("aoc_repair.load_progress", return_value={"parts": {}}), \
+                patch("aoc_repair.verify", side_effect=Blocked("no code to reproduce the answer")):
             with self.assertRaises(Blocked):
                 controller.select("daily", authorize=True)
 
@@ -308,9 +308,9 @@ class WorkflowTests(unittest.TestCase):
         wrong_receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "99",
             "commit": "deadbeef", "files": {}, "owner": "owner", "verification": {},
             "formatting": "passed", "tests": "passed", "runner": "passed", "verifiedAt": "now"}
-        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
-                patch("workflow.load_progress", return_value={"parts": {}}), \
-                patch("workflow.verify", return_value=wrong_receipt):
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), \
+                patch("aoc_repair.load_progress", return_value={"parts": {}}), \
+                patch("aoc_repair.verify", return_value=wrong_receipt):
             with self.assertRaises(Blocked):
                 controller.select("daily", authorize=True)
 

@@ -28,10 +28,16 @@ class FakeRepo:
     def sync(self):
         self.synced = True
 
+    def validate_receipt(self, receipt):
+        pass  # accepted entries in these tests are already trustworthy
+
 
 class FakeSite:
     def __init__(self, account="acct"):
         self.account = account
+
+    def page(self, year, day):
+        return {"complete": 0, "answers": []}  # not yet solved on the real site
 
 
 class NextUnsolvedTests(unittest.TestCase):
@@ -70,10 +76,10 @@ class NextUnsolvedTests(unittest.TestCase):
         parts = {}
         for day in range(1, 9):
             make_day(self.root, 2015, day)
-            parts[f"2015/{day:02}/1"] = {"outcome": "accepted"}
-            parts[f"2015/{day:02}/2"] = {"outcome": "accepted"}
+            parts[f"2015/{day:02}/1"] = {"outcome": "accepted", "site": {"account": "acct"}, "receipt": {"answer": "x"}}
+            parts[f"2015/{day:02}/2"] = {"outcome": "accepted", "site": {"account": "acct"}, "receipt": {"answer": "x"}}
         make_day(self.root, 2015, 9, parts=(1,))
-        parts["2015/09/1"] = {"outcome": "accepted"}
+        parts["2015/09/1"] = {"outcome": "accepted", "site": {"account": "acct"}, "receipt": {"answer": "x"}}
         self.write_progress(parts)
 
         year, day, part, state = next_unsolved(self.repo, self.site)
