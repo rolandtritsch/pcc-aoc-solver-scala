@@ -169,6 +169,29 @@ repair+reducer, run old/new controllers in shadow mode before cutover.
 governing constraint — worth proving out before investing in either option
 below.
 
+**Spike result (2026-11-25):** a throwaway, read-only, no-network prototype
+of `reconcile()` was run against real data in the `scala3-aoc` solutions
+repo (17 committed parts, 2015 days 1–9) plus two scripted synthetic cases.
+Findings:
+- Confirmed a real, pre-existing drift: `LAST.md` claims `2015/04/2` while
+  `.aoc/progress.json`'s receipt ledger shows `2015/09/1` accepted. The loop
+  reproduced the correct frontier with **no explicit repair step**, because
+  it never reads `LAST.md` as authority — direct evidence for the
+  self-healing claim above, against a real, not synthetic, discrepancy.
+- Two ticks over all 17 real parts produced byte-identical output
+  (idempotent/convergent).
+- Two scripted synthetic cases confirmed the hardest invariants hold without
+  any live network access: site-accepted-but-no-repo-code → `NEEDS_OPERATOR`
+  (never fabricates); uncertain-submission → `UNCERTAIN` → re-query →
+  `ACCEPTED` (never blind-retries).
+
+No red or yellow flags surfaced that would block choosing Option A. The
+spike was narrow by design — only already-solved historical days, no live
+site traffic, no in-flight solver run, no concurrent instances — so it
+cannot speak to the two risks already named above (lease/claim handling for
+a real 30-minute solve, and racing company instances). Those are the right
+next spikes before full commitment, not new risks this one surfaced.
+
 ---
 
 ## Option B — Temporal as durable coordinator (ECS Fargate)
@@ -351,12 +374,17 @@ for evidence of recurring state bugs, not be built speculatively up front.
 
 Build the shared pure reducer and its must-have tests first, regardless of
 which option wins — that's the durable, portable asset across all three.
-Then, **in parallel, not in sequence**: run Option B's ECS Fargate POC early
-and cheaply, in isolation (given the Ugly finding above, don't defer it
-behind building Option A first); and spike Option A's reconciliation loop
-plus Option C's DBOS substrate against a handful of real historical AoC days.
-Let evidence from both spikes — not a priori preference — decide between
-Option A as the long-term design or a migration toward B or C.
+
+**Update, 2026-11-25:** Option A's reconciliation loop has been spiked
+against real historical repo data with no red/yellow flags (see Option A's
+Spike result above) and is the current leading direction. The spike was
+narrow — historical, already-solved days only, no live site traffic, no
+in-flight solve, no concurrent instances — so before treating Option A as
+settled, still run: (1) a lease/claim spike against one real, full-length
+solver run, and (2) a two-racing-instances spike. Keep Option B's ECS
+Fargate POC on the backlog as a cheap, isolated, low-priority check (not
+blocking) given its Ugly finding, in case Option A's remaining spikes turn
+up a hard blocker; Option C (DBOS) remains the fallback if they do.
 
 **Non-negotiables:** repo remains source of truth; state repair is a
 first-class behavior, not an operator script; all external effects are
