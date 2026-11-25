@@ -89,7 +89,15 @@ class Controller:
                 self.api.put_document(control["id"], "publication", receipt)
                 state["start"] = "submit"
         self.api.put_document(control["id"], "state", state)
-        self.api.request("PATCH", "/issues/" + control["id"], {"status": "blocked"})
+        # Paperclip rejects a bare status="blocked" PATCH unless the issue
+        # already has an unresolved blocker, a pending interaction/approval,
+        # or an explicit unblockDescriptor (HTTP 422 otherwise) -- the
+        # control task has none of the first two at creation time, since its
+        # first specialist child doesn't exist yet. "board" is correct here
+        # (not an agent/user): this control task unblocks itself once its
+        # own stage pipeline finishes, not because any one person/agent acts.
+        self.api.request("PATCH", "/issues/" + control["id"], {"status": "blocked",
+            "unblockDescriptor": {"owner": "board", "action": "Specialist stage children complete"}})
         return self.advance(control, spec, [], False)
 
     def advance(self, control, spec, rows, allow_repair):

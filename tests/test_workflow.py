@@ -271,6 +271,21 @@ class WorkflowTests(unittest.TestCase):
             result = self.controller.select("daily", authorize=True)
         self.assertEqual(result["stage"], "gather")
 
+    def test_new_control_task_blocks_with_an_unblock_descriptor(self):
+        # Paperclip's real API rejects a bare status="blocked" PATCH with
+        # HTTP 422 ("Entering blocked requires unresolved blockers, a
+        # pending interaction/approval, or unblockDescriptor") when the
+        # issue has none of those yet -- true for a brand-new control task,
+        # since its first specialist child doesn't exist at this point.
+        with patch("aoc_repair.calendar", return_value=[(2015, 1, 1)]), \
+                patch("aoc_repair.load_progress", return_value={"parts": {}}), \
+                patch("aoc_repair.candidate_present", return_value=False):
+            self.controller.select("daily", authorize=True)
+        control = next(row for row in self.api.rows.values() if row["description"] and
+            json.loads(row["description"]).get("stage") == "control")
+        self.assertEqual(control["status"], "blocked")
+        self.assertTrue(control.get("unblockDescriptor"))
+
     def test_straight_to_submit_rejection_is_tracked_like_any_other(self):
         receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "42",
             "commit": "deadbeef", "files": {}, "owner": "owner", "verification": {},
