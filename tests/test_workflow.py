@@ -291,6 +291,29 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(assignment(self.child("gather", attempt=1))["attempt"], 1)
         self.assertEqual(self.api.docs[control_id, "rejections"], {"1": ["42"]})
 
+    def test_site_accepted_without_repo_code_requires_operator(self):
+        site = type("Site", (), {"account": "account",
+            "page": lambda *a: {"complete": 1, "answers": ["42"]}})()
+        controller = Controller(self.api, self.repo, site, "company", "generation", "CTO")
+        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
+                patch("workflow.load_progress", return_value={"parts": {}}), \
+                patch("workflow.verify", side_effect=Blocked("no code to reproduce the answer")):
+            with self.assertRaises(Blocked):
+                controller.select("daily", authorize=True)
+
+    def test_site_accepted_with_wrong_candidate_answer_raises_blocked(self):
+        site = type("Site", (), {"account": "account",
+            "page": lambda *a: {"complete": 1, "answers": ["42"]}})()
+        controller = Controller(self.api, self.repo, site, "company", "generation", "CTO")
+        wrong_receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "99",
+            "commit": "deadbeef", "files": {}, "owner": "owner", "verification": {},
+            "formatting": "passed", "tests": "passed", "runner": "passed", "verifiedAt": "now"}
+        with patch("workflow.calendar", return_value=[(2015, 1, 1)]), \
+                patch("workflow.load_progress", return_value={"parts": {}}), \
+                patch("workflow.verify", return_value=wrong_receipt):
+            with self.assertRaises(Blocked):
+                controller.select("daily", authorize=True)
+
 
 if __name__ == "__main__":
     unittest.main()
