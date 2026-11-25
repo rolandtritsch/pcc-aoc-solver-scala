@@ -7,8 +7,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from unittest.mock import patch  # noqa: E402
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills/aoc-runtime/scripts"))
 
+from common import Blocked  # noqa: E402
 from aoc_repair import next_unsolved  # noqa: E402
 
 
@@ -20,15 +23,17 @@ def make_day(root, year, day, parts=(1, 2)):
 
 
 class FakeRepo:
-    def __init__(self, path):
+    def __init__(self, path, invalid_receipts=()):
         self.path = Path(path)
         self.synced = False
+        self.invalid_receipts = set(invalid_receipts)
 
     def sync(self):
         self.synced = True
 
     def validate_receipt(self, receipt):
-        pass  # accepted entries in these tests are already trustworthy
+        if receipt.get("answer") in self.invalid_receipts:
+            raise Blocked("Publication inputs/build/source changed")
 
 
 class FakeSite:
@@ -91,6 +96,29 @@ class NextUnsolvedTests(unittest.TestCase):
         first = next_unsolved(self.repo, self.site)
         second = next_unsolved(self.repo, self.site)
         self.assertEqual(first, second)
+
+    def test_unreconfirmable_historical_entry_restarts_from_scratch(self):
+        # Mirrors the real 2026-11-25 incident: day17/part1 was accepted and
+        # receipted, then day17/part2 was later recommitted -- invalidating
+        # part1's stored receipt purely because hashing is scoped per day,
+        # not per part, even though part1 itself is untouched and the site
+        # still shows it accepted. Local re-verification (sbt) then also
+        # fails (unrelated repo-state issue). This must not crash the whole
+        # reconcile loop -- it must fall back to a fresh gather -> solve ->
+        # submit attempt for that one part, exactly like an unsolved part.
+        parts = {}
+        for day in range(1, 17):
+            make_day(self.root, 2015, day)
+            parts[f"2015/{day:02}/1"] = {"outcome": "accepted", "site": {"account": "acct"}, "receipt": {"answer": "x"}}
+            parts[f"2015/{day:02}/2"] = {"outcome": "accepted", "site": {"account": "acct"}, "receipt": {"answer": "x"}}
+        make_day(self.root, 2015, 17, parts=(1, 2))
+        parts["2015/17/1"] = {"outcome": "accepted", "site": {"account": "acct"}, "receipt": {"answer": "stale-answer"}}
+        self.repo = FakeRepo(self.root, invalid_receipts={"stale-answer"})
+        self.write_progress(parts)
+        with patch("aoc_repair.verify", side_effect=Blocked("sbt failed")):
+            year, day, part, state = next_unsolved(self.repo, self.site)
+        self.assertEqual((year, day, part), (2015, 17, 1))
+        self.assertEqual(state, "CANDIDATE_PRESENT")
 
 
 if __name__ == "__main__":

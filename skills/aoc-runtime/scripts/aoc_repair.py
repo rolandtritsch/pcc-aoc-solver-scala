@@ -43,7 +43,18 @@ def next_unsolved(repo, site):
                     repo.validate_receipt(entry["receipt"])
                 except Blocked:
                     page = site.page(year, day)
-                    receipt = verify(repo, year, day, part)
+                    try:
+                        receipt = verify(repo, year, day, part)
+                    except Blocked:
+                        # Can't reconfirm a working solution locally (e.g. the
+                        # day's code drifted enough -- even via an unrelated
+                        # later part sharing the same per-day hash scope --
+                        # that it no longer builds/tests clean). Don't crash
+                        # the run: drop back to the full gather -> solve ->
+                        # submit pipeline for this part, same as if it had
+                        # never been solved.
+                        has_code = candidate_present(repo.path, year, day, part)
+                        return year, day, part, reconcile(has_code, None, None)
                     if (page["complete"] < part or len(page["answers"]) < part
                             or page["answers"][part - 1] != receipt["answer"]):
                         raise Blocked("Changed historical solution disagrees with site")
