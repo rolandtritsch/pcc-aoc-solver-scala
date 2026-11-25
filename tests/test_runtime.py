@@ -14,6 +14,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "skills/aoc-runtime/scripts"))
 sys.path.insert(0, str(ROOT / "operators"))
+import common
 from common import Blocked, calendar, digest, identity, lock, read_json, write_json
 from publication import check_output
 from repository import Repository, load_progress
@@ -435,6 +436,55 @@ class SubmissionTests(unittest.TestCase):
     def test_mismatched_receipt_prevents_post(self):
         with self.assertRaises(Blocked):
             submit(FakeRepository(), FakeSite([]), self.spec, {**self.receipt, "part": 2}, self.path)
+
+
+class FakeCompletedProcess:
+    def __init__(self, returncode):
+        self.pid, self.returncode = 4242, returncode
+
+    def wait(self, timeout=None):
+        return self.returncode
+
+
+class SbtServerCleanupTests(unittest.TestCase):
+    # Real 2026-11-25 incident: sbt's client-server architecture always
+    # leaves a background JVM running after the client exits, regardless of
+    # --server/sbtn flags (confirmed empirically, not just a --server
+    # quirk). Every stage runs in a disposable, one-shot checkout that's
+    # never reused, so that server is pure orphan -- its open file handles
+    # on the shared global action-cache directory eventually block
+    # unrelated invocations elsewhere with a spurious AccessDeniedException.
+
+    def test_successful_sbt_invocation_shuts_down_its_server(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as root, \
+                patch("common.subprocess.Popen", return_value=FakeCompletedProcess(0)), \
+                patch("common.subprocess.run", side_effect=lambda args, **kw: calls.append(args)):
+            common.command(root, ["sbt", "doThing"])
+        self.assertIn(["sbt", "shutdownall"], calls)
+
+    def test_failed_sbt_invocation_still_shuts_down_its_server(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as root, \
+                patch("common.subprocess.Popen", return_value=FakeCompletedProcess(1)), \
+                patch("common.subprocess.run", side_effect=lambda args, **kw: calls.append(args)):
+            with self.assertRaises(Blocked):
+                common.command(root, ["sbt", "doThing"])
+        self.assertIn(["sbt", "shutdownall"], calls)
+
+    def test_non_sbt_commands_are_never_shut_down(self):
+        with tempfile.TemporaryDirectory() as root, \
+                patch("common.subprocess.Popen", return_value=FakeCompletedProcess(0)), \
+                patch("common.subprocess.run") as run:
+            common.command(root, ["git", "status"])
+        run.assert_not_called()
+
+    def test_cleanup_failure_never_masks_the_real_command_error(self):
+        with tempfile.TemporaryDirectory() as root, \
+                patch("common.subprocess.Popen", return_value=FakeCompletedProcess(1)), \
+                patch("common.subprocess.run", side_effect=RuntimeError("boom")):
+            with self.assertRaises(Blocked):
+                common.command(root, ["sbt", "doThing"])
 
 
 if __name__ == "__main__":

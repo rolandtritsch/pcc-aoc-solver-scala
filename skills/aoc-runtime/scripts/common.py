@@ -68,17 +68,38 @@ def command(cwd, args, timeout=900):
         process = subprocess.Popen(args, cwd=cwd, text=True, stdout=log,
                                    stderr=subprocess.STDOUT, start_new_session=True)
         try:
-            process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGTERM)
             try:
-                process.wait(timeout=5)
+                process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-            raise Blocked(f"{args[0]} timed out; private diagnostic {path}") from None
-        if process.returncode:
-            raise Blocked(f"{args[0]} failed ({process.returncode}); private diagnostic {path}")
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+                raise Blocked(f"{args[0]} timed out; private diagnostic {path}") from None
+            if process.returncode:
+                raise Blocked(f"{args[0]} failed ({process.returncode}); private diagnostic {path}")
+        finally:
+            # sbt always keeps a background server running after the client
+            # exits (its client-server architecture, regardless of
+            # --server/sbtn flags -- confirmed empirically, not just a
+            # --server quirk). Every stage runs in a disposable, one-shot
+            # checkout that is never reused, so that server is pure orphan:
+            # it never gets reused, never shuts down on its own, and its
+            # open file handles on the *shared* global action-cache
+            # directory eventually block unrelated invocations elsewhere
+            # with a spurious AccessDeniedException. The real mutation lock
+            # (see lock()) already serializes every one of our own sbt
+            # invocations host-wide, so shutting down ALL sbt servers here
+            # can never kill a concurrently active one of ours. Best-effort:
+            # a cleanup failure must never mask the real command's outcome.
+            if args[0] == "sbt":
+                try:
+                    subprocess.run(["sbt", "shutdownall"], cwd=cwd, timeout=30,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                except Exception:
+                    pass  # Best-effort cleanup must never mask the real outcome above.
         log.seek(0)
         output = log.read()
     path.unlink()
