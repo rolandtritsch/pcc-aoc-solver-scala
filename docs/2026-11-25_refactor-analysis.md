@@ -192,6 +192,28 @@ cannot speak to the two risks already named above (lease/claim handling for
 a real 30-minute solve, and racing company instances). Those are the right
 next spikes before full commitment, not new risks this one surfaced.
 
+**Lease/claim spike result (2026-11-25):** ran the `Lease{lease_id,
+fence_token, owner, expires_at}` primitive against two **real** `sbt
+--server --batch 'clean; compile; testOnly aoc2015.day01.Day01Test; run'`
+invocations — the exact command shape the Solver stage actually uses
+(`publication.py`/`common.py`), not a simulated sleep. Read-only: no git
+writes, no AoC site, no Paperclip.
+- **Happy path:** real build took 28s; one heartbeat renewal mid-build kept
+  the lease alive; the build produced the real answer (`Day01 - part1:
+  138`, matching the known `progress.json` receipt); the resulting effect
+  was accepted under the still-valid fence token.
+- **Stale/crashed worker:** a lease was deliberately starved of heartbeats
+  (TTL=8s) while a second real build ran in the background. The reconciler
+  independently observed expiry and bumped the fence token (repair, no
+  coordination with the original worker). When the original subprocess
+  finished 8s later with a *correct* answer, its submission was **rejected**
+  for carrying a stale fence token — only the repaired owner's effect was
+  accepted.
+
+This closes the lease/claim risk named above against real, not simulated,
+long-running work. The only remaining unexercised risk from the original
+list is racing/concurrent company instances.
+
 ---
 
 ## Option B — Temporal as durable coordinator (ECS Fargate)
@@ -375,16 +397,16 @@ for evidence of recurring state bugs, not be built speculatively up front.
 Build the shared pure reducer and its must-have tests first, regardless of
 which option wins — that's the durable, portable asset across all three.
 
-**Update, 2026-11-25:** Option A's reconciliation loop has been spiked
-against real historical repo data with no red/yellow flags (see Option A's
-Spike result above) and is the current leading direction. The spike was
-narrow — historical, already-solved days only, no live site traffic, no
-in-flight solve, no concurrent instances — so before treating Option A as
-settled, still run: (1) a lease/claim spike against one real, full-length
-solver run, and (2) a two-racing-instances spike. Keep Option B's ECS
-Fargate POC on the backlog as a cheap, isolated, low-priority check (not
-blocking) given its Ugly finding, in case Option A's remaining spikes turn
-up a hard blocker; Option C (DBOS) remains the fallback if they do.
+**Update, 2026-11-25:** Option A's reconciliation loop has been spiked twice
+with no red/yellow flags — against real historical repo data, and against
+the lease/claim mechanism under two real `sbt` solver builds (see Option A's
+Spike results above) — and is the current leading direction. Both spikes
+were still narrow: neither exercised concurrent/racing company instances.
+That remains the one open item before treating Option A as settled. Keep
+Option B's ECS Fargate POC on the backlog as a cheap, isolated, low-priority
+check (not blocking) given its Ugly finding, in case the racing-instances
+spike turns up a hard blocker; Option C (DBOS) remains the fallback if it
+does.
 
 **Non-negotiables:** repo remains source of truth; state repair is a
 first-class behavior, not an operator script; all external effects are
