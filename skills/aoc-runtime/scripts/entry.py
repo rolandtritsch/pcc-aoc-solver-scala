@@ -18,7 +18,7 @@ from workflow import Controller, assignment, complete_stage, stage_notifier
 from probe import qualify
 
 
-def run_model(args, cwd, prompt, env, timeout=1800):
+def run_model(args, cwd, prompt, env, timeout=3600):
     process = subprocess.Popen(args, cwd=cwd, stdin=subprocess.PIPE, text=True,
                                env=env, start_new_session=True)
     def stop(signum, frame):
@@ -30,7 +30,7 @@ def run_model(args, cwd, prompt, env, timeout=1800):
         process.communicate(prompt, timeout=timeout)
         return process.returncode
     except subprocess.TimeoutExpired:
-        raise Blocked("Solver exceeded 30-minute execution budget; attempt preserved") from None
+        raise Blocked(f"Solver exceeded {timeout // 60}-minute execution budget; attempt preserved") from None
     finally:
         signal.signal(signal.SIGTERM, previous)
         if process.poll() is None:

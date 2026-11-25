@@ -5,7 +5,7 @@ assignee: cto
 recurring: true
 ---
 
-Each hour, reconcile from 2015 day01 onward (repo + authenticated site are
+Every 2 hours, reconcile from 2015 day01 onward (repo + authenticated site are
 truth; never trust a stored cursor) and act on the first part not yet
 accepted. If a candidate solution is already committed for that part,
 verify it end to end and dispatch straight to the Submitter to confirm it

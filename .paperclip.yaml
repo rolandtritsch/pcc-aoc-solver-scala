@@ -103,7 +103,7 @@ agents:
           OPENCODE_ALLOW_ALL_MODELS:
             type: plain
             value: 'true'
-        timeoutSec: 2100
+        timeoutSec: 4200
     inputs:
       env:
         GH_TOKEN:
@@ -163,5 +163,5 @@ routines:
     triggers:
       - kind: schedule
         enabled: false
-        cronExpression: 0 * * * *
+        cronExpression: 0 */2 * * *
         timezone: UTC

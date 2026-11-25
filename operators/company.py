@@ -142,7 +142,7 @@ def verify(api, company):
         raise Blocked("Expected exactly one routine")
     routine = api.request("GET", "/routines/" + routines[0]["id"])
     triggers = routine.get("triggers", [])
-    if len(triggers) != 1 or triggers[0].get("cronExpression") != "0 * * * *" or triggers[0].get("timezone") != "UTC":
+    if len(triggers) != 1 or triggers[0].get("cronExpression") != "0 */2 * * *" or triggers[0].get("timezone") != "UTC":
         raise Blocked("Daily trigger is missing or malformed")
     for agent in agents:
         config = api.request("GET", "/agents/" + agent["id"] + "/configuration")
@@ -158,7 +158,7 @@ def verify(api, company):
             raise Blocked("Missing site account credential")
         if agent["name"] == "Problem Solver" and not env.get("OPENROUTER_API_KEY"):
             raise Blocked("Solver model credential is not bound")
-    return {"company": company, "roles": 4, "schedule": "0 * * * * UTC", "paused": True,
+    return {"company": company, "roles": 4, "schedule": "0 */2 * * * UTC", "paused": True,
             "runtimeQualification": "required: probe, release hashes, authenticated Git, template tests"}
 
 
@@ -198,7 +198,7 @@ def sync_routine(api, company, files):
         routine = api.request("POST", f"/companies/{company}/routines", desired)
     routine = api.request("GET", "/routines/" + routine["id"])
     triggers = routine.get("triggers", [])
-    desired_trigger = {"enabled": False, "cronExpression": "0 * * * *", "timezone": "UTC"}
+    desired_trigger = {"enabled": False, "cronExpression": "0 */2 * * *", "timezone": "UTC"}
     if len(triggers) > 1:
         raise Blocked("Multiple triggers on canonical routine; disable/reconcile explicitly")
     if triggers:
