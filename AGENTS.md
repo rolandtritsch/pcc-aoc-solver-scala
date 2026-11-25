@@ -512,12 +512,6 @@ Re-verify against current Paperclip source before retaining a workaround.
     swallowed error). Fix: temporarily set a real `cwd`, let it verify to
     `ready`, then PATCH `cwd` back to the logical path — this does **not**
     re-trigger verification once an agent is already `ready`.
-- **Agents can get stuck in a lifecycle transition forever** (e.g.
-  `pausing`/`terminating`), where `resume`/`delete` either no-op or 409
-  ("Complete termination before deleting the agent"). Never fully
-  root-caused this session. Workaround: create a new agent and leave the
-  stuck one orphaned (terminated-but-undeleted); don't burn time trying to
-  force it through its stuck transition.
 - **Company import's `secretValues` never actually gets used two different
   ways:** (a) it always creates brand-new secrets, never matches existing
   ones by name/value, and (b) the `company import` CLI command doesn't even
