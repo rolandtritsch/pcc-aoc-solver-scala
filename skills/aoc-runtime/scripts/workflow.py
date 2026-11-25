@@ -93,11 +93,16 @@ class Controller:
         # already has an unresolved blocker, a pending interaction/approval,
         # or an explicit unblockDescriptor (HTTP 422 otherwise) -- the
         # control task has none of the first two at creation time, since its
-        # first specialist child doesn't exist yet. "board" is correct here
-        # (not an agent/user): this control task unblocks itself once its
-        # own stage pipeline finishes, not because any one person/agent acts.
+        # first specialist child doesn't exist yet. owner must be this CTO
+        # agent itself, not "board": an agent-authenticated PATCH is
+        # unconditionally forbidden from naming "board" as the unblock
+        # owner (server/src/routes/issues.ts: "Agents may only name
+        # themselves as an unblock owner"). Hit live 2026-11-25 on the
+        # second day ever authorized; the first day's equivalent call
+        # evidently took a path that didn't need this field re-validated.
         self.api.request("PATCH", "/issues/" + control["id"], {"status": "blocked",
-            "unblockDescriptor": {"owner": "board", "action": "Specialist stage children complete"}})
+            "unblockDescriptor": {"owner": {"agentId": self.agent},
+                "action": "Specialist stage children complete"}})
         return self.advance(control, spec, [], False)
 
     def advance(self, control, spec, rows, allow_repair):

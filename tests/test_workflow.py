@@ -284,7 +284,9 @@ class WorkflowTests(unittest.TestCase):
         control = next(row for row in self.api.rows.values() if row["description"] and
             json.loads(row["description"]).get("stage") == "control")
         self.assertEqual(control["status"], "blocked")
-        self.assertTrue(control.get("unblockDescriptor"))
+        # Paperclip forbids an agent-authenticated caller from naming
+        # "board" as the unblock owner -- only itself.
+        self.assertEqual(control["unblockDescriptor"]["owner"], {"agentId": "CTO"})
 
     def test_straight_to_submit_rejection_is_tracked_like_any_other(self):
         receipt = {"schema": 1, "year": 2015, "day": 1, "part": 1, "answer": "42",
