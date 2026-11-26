@@ -298,8 +298,12 @@ opencode/python one; our incident left a detached `sbt` server), then
 either get direct DB access to the Paperclip instance to manually write the
 termination receipt (needs an operator with that access; not available via
 the CLI/API we use) or orphan the stuck agent (leave it
-terminated-but-undeleted) and create a replacement. Don't burn time trying
-to force it through the transition any other way.
+terminated-but-undeleted) and create a replacement — use the
+**`replace-stuck-agent`** skill for this, which scripts the whole
+terminate -> redeploy -> rebind -> reassign sequence (`operators/
+replace_agent.py`); do not do it by hand, two real incidents each needed a
+manual follow-up fix the first time a step was missed. Don't burn time
+trying to force the stuck transition itself through any other way.
 
 ## Key IDs from 2026-11-25 (may be stale — verify before reusing)
 

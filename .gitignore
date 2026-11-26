@@ -15,5 +15,6 @@ __pycache__/
 !.claude/skills/company-creator
 !.claude/skills/deploy-aoc-company
 !.claude/skills/deploy-aoc-runtime-image
+!.claude/skills/replace-stuck-agent
 .agents/skills/paperclip*
 .agents/skills/para-memory-files
