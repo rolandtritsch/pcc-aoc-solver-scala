@@ -65,11 +65,19 @@ def active_agent(api, company, role):
 def resolve_binding(api, company, role, generation=None, environment=None, account=None):
     agent = active_agent(api, company, role)
     config = api.request("GET", f"/agents/{agent['id']}/configuration")
-    env = config["adapterConfig"].get("env", {})
+    # bind() writes the real generation/account into metadata.aoc, not env:
+    # every plain env value (regardless of content) comes back from a GET as
+    # the literal string "***REDACTED***", so reading AOC_GENERATION/
+    # AOC_ACCOUNT out of adapterConfig.env silently resolves to that literal
+    # placeholder instead of the real value -- Paperclip's own redaction
+    # guard then 422s the later bind PATCH ("A redacted value was changed or
+    # moved") rather than let a bogus value through, but only after
+    # replace() has already terminated the old agent.
+    aoc_metadata = (config.get("metadata") or {}).get("aoc", {})
     resolved = {
-        "generation": generation or env.get("AOC_GENERATION", {}).get("value"),
+        "generation": generation or aoc_metadata.get("generation"),
         "environment": environment or config.get("defaultEnvironmentId"),
-        "account": account or env.get("AOC_ACCOUNT", {}).get("value"),
+        "account": account or aoc_metadata.get("account"),
     }
     if not all(resolved.values()):
         raise Blocked("Could not resolve generation/environment/account from the "

@@ -43,24 +43,47 @@ def agent(id_, name, status="paused"):
     return {"id": id_, "name": name, "status": status}
 
 
+def bound_config(environment_id, generation="gen-1", account="acct-1"):
+    # bind() writes the real generation/account into metadata.aoc. The
+    # adapterConfig.env entries are what a real Paperclip GET actually
+    # returns: every plain value comes back as the literal string
+    # "***REDACTED***", regardless of content -- included here so a
+    # resolver that (incorrectly) reads env instead of metadata would pick
+    # up that placeholder instead of failing loudly.
+    return {"defaultEnvironmentId": environment_id, "metadata": {"aoc": {
+                "generation": generation, "account": account}},
+            "adapterConfig": {"env": {
+                "AOC_GENERATION": {"type": "plain", "value": "***REDACTED***"},
+                "AOC_ACCOUNT": {"type": "plain", "value": "***REDACTED***"}}}}
+
+
 class ResolveBindingTests(unittest.TestCase):
-    def test_resolves_from_the_current_agents_own_config(self):
+    def test_resolves_from_the_current_agents_own_metadata(self):
         api = FakeApi(
             agents=[agent("old-cto", "CTO")],
-            configs={"old-cto": {"defaultEnvironmentId": "env-1", "adapterConfig": {"env": {
-                "AOC_GENERATION": {"type": "plain", "value": "gen-1"},
-                "AOC_ACCOUNT": {"type": "plain", "value": "acct-1"}}}}},
+            configs={"old-cto": bound_config("env-1")},
         )
         old, binding = ra.resolve_binding(api, "company", "cto")
         self.assertEqual(old["id"], "old-cto")
         self.assertEqual(binding, {"generation": "gen-1", "environment": "env-1", "account": "acct-1"})
 
+    def test_redacted_env_placeholder_is_never_mistaken_for_the_real_value(self):
+        # Regression: resolve_binding() used to read AOC_GENERATION/
+        # AOC_ACCOUNT from adapterConfig.env, which a real Paperclip GET
+        # always redacts -- resolving to the literal string
+        # "***REDACTED***" instead of the real value, which then 422s the
+        # later bind PATCH ("A redacted value was changed or moved").
+        api = FakeApi(
+            agents=[agent("old-cto", "CTO")],
+            configs={"old-cto": bound_config("env-1")},
+        )
+        _, binding = ra.resolve_binding(api, "company", "cto")
+        self.assertNotIn("***REDACTED***", binding.values())
+
     def test_explicit_overrides_win_over_resolved_values(self):
         api = FakeApi(
             agents=[agent("old-cto", "CTO")],
-            configs={"old-cto": {"defaultEnvironmentId": "env-1", "adapterConfig": {"env": {
-                "AOC_GENERATION": {"type": "plain", "value": "gen-1"},
-                "AOC_ACCOUNT": {"type": "plain", "value": "acct-1"}}}}},
+            configs={"old-cto": bound_config("env-1")},
         )
         _, binding = ra.resolve_binding(api, "company", "cto", generation="gen-override")
         self.assertEqual(binding["generation"], "gen-override")
@@ -69,7 +92,7 @@ class ResolveBindingTests(unittest.TestCase):
     def test_missing_binding_data_raises_rather_than_silently_redeploying_wrong(self):
         api = FakeApi(
             agents=[agent("old-cto", "CTO")],
-            configs={"old-cto": {"defaultEnvironmentId": None, "adapterConfig": {"env": {}}}},
+            configs={"old-cto": {"defaultEnvironmentId": None, "metadata": None, "adapterConfig": {"env": {}}}},
         )
         with self.assertRaises(Blocked):
             ra.resolve_binding(api, "company", "cto")
@@ -77,9 +100,7 @@ class ResolveBindingTests(unittest.TestCase):
     def test_terminated_agent_is_not_the_active_one(self):
         api = FakeApi(
             agents=[agent("old-cto", "CTO", status="terminated"), agent("new-cto", "CTO", status="paused")],
-            configs={"new-cto": {"defaultEnvironmentId": "env-1", "adapterConfig": {"env": {
-                "AOC_GENERATION": {"type": "plain", "value": "gen-1"},
-                "AOC_ACCOUNT": {"type": "plain", "value": "acct-1"}}}}},
+            configs={"new-cto": bound_config("env-1")},
         )
         old, _ = ra.resolve_binding(api, "company", "cto")
         self.assertEqual(old["id"], "new-cto")
@@ -121,9 +142,7 @@ class ReplaceOrchestrationTests(unittest.TestCase):
         # the two run_cli-mocked calls.
         api = FakeApi(
             agents=[agent("old-cto", "CTO")],
-            configs={"old-cto": {"defaultEnvironmentId": "env-1", "adapterConfig": {"env": {
-                "AOC_GENERATION": {"type": "plain", "value": "gen-1"},
-                "AOC_ACCOUNT": {"type": "plain", "value": "acct-1"}}}}},
+            configs={"old-cto": bound_config("env-1")},
             issues=[{"id": "control-1", "assigneeAgentId": "old-cto"}],
         )
 
