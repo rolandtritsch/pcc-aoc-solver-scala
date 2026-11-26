@@ -7,6 +7,17 @@ from publication import verify
 from aoc_site import verdict
 
 
+def _scrub(article):
+    # AoC's fetched article HTML can leave trailing whitespace on interior
+    # lines too (e.g. day 25's ASCII chimney-weight table), not just a
+    # trailing blank line at the end -- git diff --cached --check flags
+    # either, aborting the gather commit before it starts.
+    lines = [line.rstrip() for line in article.splitlines()]
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines)
+
+
 def gather(repo, site, assignment):
     year, day, part = (assignment[k] for k in ("year", "day", "part"))
     identity(year, day, part)
@@ -17,7 +28,7 @@ def gather(repo, site, assignment):
     statement = f"{year}/problems/Day{day:02}Problem.txt"
     target = repo.path / statement
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("\n\n".join(a.rstrip() for a in page["articles"][:part]) + "\n")
+    target.write_text("\n\n".join(_scrub(a) for a in page["articles"][:part]) + "\n")
     input_name = f"{year}/src/main/resources/inputs/Day{day:02}.txt"
     path = repo.path / input_name
     path.parent.mkdir(parents=True, exist_ok=True)

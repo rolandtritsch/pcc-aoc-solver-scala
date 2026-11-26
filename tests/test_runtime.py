@@ -357,6 +357,35 @@ class GitTests(unittest.TestCase):
         self.assertTrue(text.endswith("strings?\n"))
         self.assertFalse(text.endswith("\n\n"))
 
+    def test_gather_strips_trailing_whitespace_on_interior_lines(self):
+        repo = self.prepare()
+        shutil.copytree(ROOT / "skills/aoc-runtime/assets/template", repo.path / "0000")
+        files = [str(p.relative_to(repo.path)) for p in (repo.path / "0000").rglob("*") if p.is_file()]
+        repo.commit(files, "template", force=True)
+
+        class FakeGatherSite:
+            def page(self, year, day):
+                # Day 25's ASCII chimney-weight table leaves trailing spaces
+                # on an interior line, not just a trailing blank line at the
+                # end -- git diff --cached --check flags that too.
+                return {"articles": ["Day 25: doesn't matter.\n\n  | 1   2   3  \n\nHow much?\n"]}
+
+            def fetch(self, year, day, suffix="", data=None):
+                return "1,2,3\n"
+
+        import repository
+        original = repository.command
+        def run(cwd, args, timeout=900):
+            if args[0] == "sbt":
+                return "+ Day00\n34 tests passed. 0 tests failed. 0 tests ignored.\nDay00 - part1: 55"
+            return original(cwd, args, timeout)
+        with patch("repository.command", side_effect=run):
+            result = gather(repo, FakeGatherSite(), {"year": 2016, "day": 25, "part": 1})
+        self.assertEqual(result["outcome"], "gathered")
+        lines = (repo.path / "2016/problems/Day25Problem.txt").read_text().splitlines()
+        for line in lines:
+            self.assertEqual(line, line.rstrip(), f"trailing whitespace preserved on {line!r}")
+
 
 class FakeRepository:
     def assert_owner(self):
