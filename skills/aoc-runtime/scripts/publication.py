@@ -72,7 +72,9 @@ def verify(repo, year, day, part, answer=None):
 
 
 class AllowedFiles:
-    def __init__(self, year, day):
+    def __init__(self, year, day, part):
+        self.part = part
+        self.future_part = re.compile(r"Part(\d+)\.scala$")
         self.pattern = re.compile(
             rf"{year}/src/(?:"
             rf"(?:main|test)/scala/aoc{year}/(?:day{day:02}|util)/[A-Za-z][A-Za-z0-9_]*\.scala|"
@@ -81,19 +83,25 @@ class AllowedFiles:
             rf"main/resources/inputs/Day{day:02}Test[A-Za-z0-9_-]*\.txt)")
 
     def __contains__(self, name):
-        return isinstance(name, str) and self.pattern.fullmatch(name) is not None
+        if not isinstance(name, str) or self.pattern.fullmatch(name) is None:
+            return False
+        future = self.future_part.search(name)
+        # Working ahead on a part that hasn't been gathered/assigned yet is
+        # not a legitimate publication, even though earlier parts' files may
+        # still be refactored as later parts are solved.
+        return not future or int(future[1]) <= self.part
 
 
-def allowed_files(year, day):
-    identity(year, day, 1)
-    return AllowedFiles(year, day)
+def allowed_files(year, day, part):
+    identity(year, day, part)
+    return AllowedFiles(year, day, part)
 
 
 def publish(repo, assignment, answer, files):
     year, day, part = (assignment[k] for k in ("year", "day", "part"))
     identity(year, day, part)
     prefix = f"{year}/"
-    allowed = allowed_files(year, day)
+    allowed = allowed_files(year, day, part)
     if not files or not all(name in allowed for name in files):
         raise Blocked("Publication includes unauthorized paths")
     for name in files:
