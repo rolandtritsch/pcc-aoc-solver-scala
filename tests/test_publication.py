@@ -58,7 +58,7 @@ class PublicationTests(unittest.TestCase):
         self.assertIn("testOnly aoc2015.day06.Day06Test", run.call_args.args[1][-1])
 
     def test_publication_paths_follow_day_and_project_boundaries(self):
-        allowed = allowed_files(2015, 7)
+        allowed = allowed_files(2015, 7, 1)
         for path in (
             "2015/src/main/scala/aoc2015/day07/Part1.scala",
             "2015/src/main/scala/aoc2015/day07/Wire.scala",
@@ -78,3 +78,13 @@ class PublicationTests(unittest.TestCase):
             "2015/src/main/scala/aoc2015/day07/Evil;run.scala",
         ):
             self.assertNotIn(path, allowed)
+
+    def test_future_part_files_are_rejected_until_assigned(self):
+        part1 = allowed_files(2015, 7, 1)
+        self.assertIn("2015/src/main/scala/aoc2015/day07/Part1.scala", part1)
+        self.assertNotIn("2015/src/main/scala/aoc2015/day07/Part2.scala", part1)
+
+        part2 = allowed_files(2015, 7, 2)
+        self.assertIn("2015/src/main/scala/aoc2015/day07/Part2.scala", part2)
+        # A later part may still legitimately refactor an earlier part's file.
+        self.assertIn("2015/src/main/scala/aoc2015/day07/Part1.scala", part2)

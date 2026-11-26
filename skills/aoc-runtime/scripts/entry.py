@@ -85,7 +85,7 @@ def run(args):
             if existing:
                 complete_stage(api, task, spec, existing, notify=False)
                 return 0
-        allowed = allowed_files(spec["year"], spec["day"]) if spec and spec["stage"] == "solve" else None
+        allowed = allowed_files(spec["year"], spec["day"], spec["part"]) if spec and spec["stage"] == "solve" else None
         repo = Repository.prepare(root, name, owner, allowed_dirty=allowed)
         repo.assert_owner()
         site = Site(os.environ.get("AOC_SESSION", ""), os.environ["AOC_ACCOUNT"])
