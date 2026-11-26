@@ -35,6 +35,12 @@ def quiesce(api, company, timeout=1800, poll=10):
         # paperclip#16346, unfixed as of 2026-11-25: PR #20766 open but not
         # merged). Never pause a "running" agent; wait for it to go idle on
         # its own first, even if that means waiting out a long Solver run.
+        # Re-fetch live status right before deciding, not the stale
+        # inventory() snapshot: an earlier agent's own wait loop can take
+        # a long time, during which THIS agent can transition idle ->
+        # running before its turn comes up. Checking the snapshot alone
+        # reopens the exact race this function exists to close.
+        agent = api.request("GET", "/agents/" + agent["id"])
         while agent["status"] == "running":
             if time.monotonic() > deadline:
                 raise Blocked("Agent still running after the wait timeout; "

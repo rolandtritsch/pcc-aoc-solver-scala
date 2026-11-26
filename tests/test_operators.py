@@ -184,6 +184,28 @@ class OperatorTests(unittest.TestCase):
         self.assertEqual(api.agents[0]["status"], "paused")
         self.assertGreaterEqual(calls["n"], 2)
 
+    def test_quiesce_rechecks_live_status_not_the_stale_snapshot(self):
+        # The inventory() snapshot said "idle" when quiesce() started, but
+        # the agent transitioned to "running" before its own turn in the
+        # loop (e.g. while an earlier agent's wait took a long time).
+        # Pausing against the stale snapshot would reopen the exact race
+        # this function exists to close.
+        api = CompanyApi()
+        api.agents[0]["status"] = "idle"
+        calls = {"n": 0}
+
+        def race_then_idle(method, path, body=None):
+            if method == "GET" and path == "/agents/" + api.agents[0]["id"]:
+                calls["n"] += 1
+                api.agents[0]["status"] = "running" if calls["n"] == 1 else "idle"
+            return CompanyApi.request(api, method, path, body)
+
+        with patch.object(api, "request", side_effect=race_then_idle), \
+                patch("company.time.sleep"):
+            quiesce(api, "company", timeout=100, poll=1)
+        self.assertEqual(api.agents[0]["status"], "paused")
+        self.assertGreaterEqual(calls["n"], 2)
+
     def test_quiesce_refuses_to_pause_a_running_agent_past_the_timeout(self):
         api = CompanyApi()
         api.agents[0]["status"] = "running"
