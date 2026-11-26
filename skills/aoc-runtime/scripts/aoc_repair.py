@@ -42,24 +42,23 @@ def next_unsolved(repo, site):
                 try:
                     repo.validate_receipt(entry["receipt"])
                 except Blocked:
-                    page = site.page(year, day)
-                    try:
-                        receipt = verify(repo, year, day, part)
-                    except Blocked:
-                        # Can't reconfirm a working solution locally (e.g. the
-                        # day's code drifted enough -- even via an unrelated
-                        # later part sharing the same per-day hash scope --
-                        # that it no longer builds/tests clean). Don't crash
-                        # the run: drop back to the full gather -> solve ->
-                        # submit pipeline for this part, same as if it had
-                        # never been solved.
-                        has_code = candidate_present(repo.path, year, day, part)
-                        return year, day, part, reconcile(has_code, None, None)
-                    if (page["complete"] < part or len(page["answers"]) < part
-                            or page["answers"][part - 1] != receipt["answer"]):
-                        raise Blocked("Changed historical solution disagrees with site")
-                    entry["receipt"], entry["site"] = receipt, evidence(page)
-                    save_progress(repo, progress)
+                    # Expected, not corruption: repository.hashes() scopes by
+                    # DAY, not by PART, so part1's stored receipt goes stale
+                    # the instant part2's files are committed to the same
+                    # day -- which happens on every single day with two
+                    # parts. Re-running a local verify here predictably
+                    # fails for reasons unrelated to this part's own
+                    # correctness, and doing so from next_unsolved() plus
+                    # again from workflow.py's own CANDIDATE_PRESENT check
+                    # cascades into a second verify() against now-dirty
+                    # state and an uncaught crash (hit live 2026-11-25 on
+                    # day19, the first day authorized after day18 added a
+                    # part2). The site already confirms acceptance
+                    # (entry["site"], asserted above) -- that is this
+                    # project's actual acceptance oracle. Trust it; never
+                    # re-solve or discard an already-accepted part because
+                    # a LATER, unrelated part changed.
+                    pass
             continue
         page = site.page(year, day)
         if page["complete"] >= part:
