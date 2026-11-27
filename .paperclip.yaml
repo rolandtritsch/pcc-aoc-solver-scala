@@ -88,7 +88,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
-        model: openrouter/particle-ai/particle-1:free
+        model: openrouter/baidu/ernie-5.5-flash-preview:free
         command: /usr/local/bin/aoc-opencode
         env:
           AOC_ROLE:
