@@ -88,7 +88,7 @@ agents:
       type: opencode_local
       runner: legacy
       config:
-        model: openrouter/moonshotai/kimi-k3.1-pro
+        model: openrouter/particle-ai/particle-1:free
         command: /usr/local/bin/aoc-opencode
         env:
           AOC_ROLE:

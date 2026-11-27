@@ -9,6 +9,15 @@ The Solver works from first principles. There is no Reviewer, source audit,
 or algorithm assessment. Completion requires mechanical verification and
 authenticated site acceptance; it does not claim audited independence.
 
+## Solver model history
+
+| Puzzle days | Solver model |
+| --- | --- |
+| 2015 Day 01–16 | DeepSeek (`openrouter/deepseek/deepseek-v4-pro-0813`) |
+| 2015 Day 17–25 | NVIDIA Nemotron 3 Ultra (`openrouter/nvidia/nemotron-3-ultra-550b-a55b:free`) |
+| 2016 Day 01–12 | Kimi K3.1 Pro (`openrouter/moonshotai/kimi-k3.1-pro`) |
+| 2016 Day 13 onward | Particle-1 (`openrouter/particle-ai/particle-1:free`) |
+
 ## Architecture
 
 [DESIGN.md][] records the decisions, authority boundaries, restart behavior,
